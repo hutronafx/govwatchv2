@@ -16,34 +16,40 @@ const TIMEOUT_MS = 60000;
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function scrape() {
-  console.log(`\n[${new Date().toISOString()}] === STARTING SCRAPER ===`);
+  console.log(`\n[${new Date().toISOString()}] === STARTING SCRAPER (DEBUG MODE) ===`);
   
   let browser;
   let allRecords = [];
 
   try {
-    // 1. SETUP BROWSER (Robust Config)
+    // 1. SETUP BROWSER
     browser = await puppeteer.launch({
       headless: "new", 
       args: [
           '--no-sandbox', 
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu'
+          '--disable-blink-features=AutomationControlled',
+          '--window-size=1920,1080'
       ]
     });
     
     const page = await browser.newPage();
     
-    // Stealth
-    await page.setViewport({ width: 1366, height: 768 });
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    // 1.1 Enable Console Forwarding (CRITICAL FOR DEBUGGING)
+    page.on('console', msg => {
+        const type = msg.type();
+        const text = msg.text();
+        if (!text.includes('ERR_BLOCKED_BY_CLIENT')) { // Filter noise
+            console.log(`[BROWSER] ${text}`);
+        }
+    });
+
+    // 1.2 Stealth & Viewport
+    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
 
     // 2. RUN JOBS
-    // We run sequentially to be gentle on the server
     const dnRecords = await scrapeCategory(page, URL_DN, 'Direct Negotiation');
     allRecords = [...allRecords, ...dnRecords];
 
@@ -54,14 +60,13 @@ async function scrape() {
     if (allRecords.length > 0) {
         await saveData(allRecords);
     } else {
-        console.log("[-] No new records found in this run.");
+        console.log("[-] No new records found in this run. Check debug_dump.html if created.");
     }
 
     console.log(`[${new Date().toISOString()}] === SCRAPER FINISHED ===\n`);
 
   } catch (error) {
     console.error('[CRITICAL SCRAPER ERROR]:', error);
-    // Do not throw; just log so server stays alive
   } finally {
     if (browser) await browser.close();
   }
@@ -73,41 +78,71 @@ async function scrapeCategory(page, startUrl, defaultMethod) {
     let pageNum = 1;
 
     try {
-        // Initial Load
-        await page.goto(startUrl, { waitUntil: 'domcontentloaded', timeout: TIMEOUT_MS });
-        await sleep(2000); // Allow JS to render
+        console.log(`   Navigating to ${startUrl}...`);
+        await page.goto(startUrl, { waitUntil: 'networkidle2', timeout: TIMEOUT_MS });
+        
+        // Explicit Wait for content to actually exist
+        console.log("   Waiting for data indicators...");
+        try {
+            await page.waitForFunction(() => {
+                const body = document.body.innerText;
+                // Look for Malay keywords common in these headers
+                return body.includes('Nama') || body.includes('Syarikat') || body.includes('Petender') || body.includes('No.');
+            }, { timeout: 15000 });
+        } catch(e) {
+            console.warn("   [!] Timeout waiting for specific keywords. Page might be empty or WAF blocked.");
+            // Dump HTML for inspection
+            const html = await page.content();
+            await fs.writeFile(`debug_dump_${defaultMethod.replace(' ', '_')}.html`, html);
+            console.log("   [Debug] Saved HTML dump to file.");
+        }
 
         while (pageNum <= MAX_PAGES_PER_CATEGORY) {
             console.log(`   Scraping Page ${pageNum}...`);
 
             // A. Check WAF / Errors
             const title = await page.title();
-            if (title.includes("Blocked") || title.includes("Error")) {
-                console.warn(`   [!] Blocked or Error detected. Title: ${title}. Stopping category.`);
+            if (title.includes("Blocked") || title.includes("Error") || title.includes("Access Denied")) {
+                console.warn(`   [!] Blocked detected. Title: ${title}. Stopping.`);
                 break;
             }
 
-            // B. Extract Data (Robust Function)
+            // B. Extract Data
             const pageRecords = await page.evaluate((method) => {
                 const results = [];
                 const now = new Date().toISOString();
-                const rows = document.querySelectorAll('div.card, tr'); // Broad selector
+                
+                // Strategy: 
+                // 1. Try Standard Tables (MyProcurement often uses tables)
+                // 2. Try Card Divs (If responsive view)
+                
+                const rows = Array.from(document.querySelectorAll('tr, div.card, div.row')); 
+                console.log(`Found ${rows.length} potential DOM elements to scan.`);
+
+                let scanned = 0;
 
                 rows.forEach(el => {
                     const text = el.innerText;
-                    if (!text || text.length < 20) return;
+                    if (!text || text.length < 30) return; // Skip empty rows
+                    scanned++;
 
-                    // Helper to pluck text safely
+                    // Helper for robust extraction
                     const getVal = (labels, endLabels) => {
                         for (const label of labels) {
-                            if (text.includes(label)) {
-                                const startIdx = text.indexOf(label) + label.length;
+                            // Case insensitive check
+                            const regex = new RegExp(label, 'i');
+                            const match = text.match(regex);
+                            if (match) {
+                                const startIdx = match.index + match[0].length;
                                 const sub = text.substring(startIdx);
-                                // Find closest stop word
+                                
                                 let limitIdx = sub.length;
                                 for (const stop of endLabels) {
-                                    const idx = sub.indexOf(stop);
-                                    if (idx > -1 && idx < limitIdx) limitIdx = idx;
+                                     const stopRegex = new RegExp(stop, 'i');
+                                     const stopMatch = sub.match(stopRegex);
+                                     if (stopMatch && stopMatch.index < limitIdx) {
+                                         limitIdx = stopMatch.index;
+                                     }
                                 }
                                 return sub.substring(0, limitIdx).replace(/[:\n]/g, '').trim();
                             }
@@ -117,27 +152,46 @@ async function scrapeCategory(page, startUrl, defaultMethod) {
 
                     const cleanMoney = (str) => {
                         if (!str) return 0;
-                        return parseFloat(str.replace(/[^0-9.]/g, ''));
+                        // Remove "RM", spaces, convert 1.000,00 to 1000.00 if needed
+                        let s = str.replace(/[^0-9.,]/g, '');
+                        if (s.indexOf('.') > -1 && s.indexOf(',') > -1) {
+                             if (s.indexOf(',') > s.indexOf('.')) s = s.replace(/\./g, '').replace(',', '.'); // 1.000,00 -> 1000.00
+                             else s = s.replace(/,/g, ''); // 1,000.00 -> 1000.00
+                        } else if (s.indexOf(',') > -1) {
+                            s = s.replace(/,/g, '');
+                        }
+                        return parseFloat(s);
                     };
 
-                    // KEYWORDS
-                    const vendor = getVal(['Nama Syarikat', 'Petender Berjaya', 'Nama Petender'], ['Nilai', 'Harga', 'Kementerian']);
-                    const amountStr = getVal(['Nilai Perolehan', 'Harga Setuju Terima', 'Harga'], ['Kriteria', 'Tempoh', 'Kementerian']);
-                    const ministry = getVal(['Kementerian'], ['Agensi', 'Tajuk', 'Nama', 'Petender']) || "Unknown Ministry";
-                    const reason = getVal(['Tajuk', 'Kriteria'], ['Kementerian', 'Agensi', 'Nama']) || method;
-                    const date = new Date().toISOString().split('T')[0];
-
+                    // KEYWORDS DICTIONARY
+                    const vendor = getVal(['Nama Syarikat', 'Petender Berjaya', 'Nama Petender', 'Vendor'], ['Nilai', 'Harga', 'Kementerian', 'No.']);
+                    
+                    // Note: 'Harga' is very common, so we check longer labels first
+                    const amountStr = getVal(['Nilai Perolehan', 'Harga Setuju Terima', 'Harga Tawaran', 'Harga'], ['Kriteria', 'Tempoh', 'Kementerian']);
+                    
+                    const ministry = getVal(['Kementerian', 'Agensi'], ['Tajuk', 'Nama', 'Petender', 'No.']) || "Unknown Ministry";
+                    const reason = getVal(['Tajuk Tender', 'Tajuk', 'Kriteria'], ['Kementerian', 'Agensi', 'Nama', 'Harga']) || method;
+                    
                     if (vendor && amountStr) {
                         const amount = cleanMoney(amountStr);
-                        if (amount > 0) {
-                            results.push({
-                                ministry, vendor, amount, method, 
-                                category: "General", date, reason,
-                                crawledAt: now, sourceUrl: document.location.href
-                            });
+                        if (amount > 0 && vendor.length < 150) {
+                            // Check if this looks like a header row
+                            if (!vendor.toLowerCase().includes("nama syarikat")) {
+                                results.push({
+                                    ministry, vendor, amount, method, 
+                                    category: "General", 
+                                    date: new Date().toISOString().split('T')[0], 
+                                    reason,
+                                    crawledAt: now, sourceUrl: document.location.href
+                                });
+                            }
+                        } else {
+                            // console.log(`Skipping: Valid vendor (${vendor}) but invalid amount (${amountStr})`);
                         }
                     }
                 });
+                
+                console.log(`Scanned ${scanned} items, extracted ${results.length} valid records.`);
                 return results;
             }, defaultMethod);
 
@@ -148,17 +202,18 @@ async function scrapeCategory(page, startUrl, defaultMethod) {
                 console.log(`     - No records found on this page.`);
             }
 
-            // C. Pagination Logic (Using XPath for text matching)
+            // C. Pagination
             if (pageNum >= MAX_PAGES_PER_CATEGORY) break;
 
             const nextClicked = await clickNextButton(page);
             if (!nextClicked) {
-                console.log("     [End] No 'Next' button found or it is disabled.");
+                console.log("     [End] Pagination stopped.");
                 break;
             }
             
-            // Wait for content refresh (simple pause is safest for these sites)
-            await sleep(3500);
+            // Wait for content refresh
+            console.log("     Waiting for page load...");
+            await sleep(5000); 
             pageNum++;
         }
     } catch (err) {
@@ -171,30 +226,34 @@ async function scrapeCategory(page, startUrl, defaultMethod) {
 // Robust 'Next' Clicker
 async function clickNextButton(page) {
     try {
-        // 1. Try finding 'Seterusnya' or 'Next' links
+        // Try multiple selector strategies
+        // 1. XPath for text "Next" or "Seterusnya"
         const buttons = await page.$x("//a[contains(text(), 'Seterusnya') or contains(text(), 'Next')]");
-        
-        for (const btn of buttons) {
-            // Check if visible
+        if (buttons.length > 0) {
+            const btn = buttons[0];
             const isVisible = await btn.boundingBox();
             if (isVisible) {
-                // Check if parent is disabled (Bootstrap style)
-                const isDisabled = await page.evaluate(el => {
-                    return el.parentElement.classList.contains('disabled') || el.hasAttribute('disabled');
-                }, btn);
-
-                if (!isDisabled) {
-                    await btn.click();
-                    return true;
-                }
+                console.log("     [Nav] Clicking text link...");
+                await btn.click();
+                return true;
             }
         }
-        
-        // 2. Try generic class selectors if text fails
-        const iconBtn = await page.$('li.next:not(.disabled) a');
-        if (iconBtn) {
-            await iconBtn.click();
-            return true;
+
+        // 2. CSS for standard pagination classes
+        const cssSelectors = [
+            'li.next:not(.disabled) a',
+            'a[aria-label="Next"]',
+            'button[aria-label="Next"]',
+            '.pagination .next a'
+        ];
+
+        for (const sel of cssSelectors) {
+            const el = await page.$(sel);
+            if (el) {
+                console.log(`     [Nav] Clicking selector: ${sel}`);
+                await el.click();
+                return true;
+            }
         }
 
     } catch (e) {
@@ -206,24 +265,21 @@ async function clickNextButton(page) {
 async function saveData(newRecords) {
     let finalData = [];
     try {
-        // Create dir if missing
         const publicDir = path.dirname(OUTPUT_PATH);
         try { await fs.access(publicDir); } catch { await fs.mkdir(publicDir, { recursive: true }); }
 
-        // Read existing
         try {
             const raw = await fs.readFile(OUTPUT_PATH, 'utf-8');
             finalData = JSON.parse(raw);
-        } catch { /* ignore missing file */ }
+        } catch { /* ignore */ }
 
-        // Deduplicate logic
         const existingSigs = new Set(finalData.map(r => `${r.vendor}-${r.amount}-${r.ministry}`));
         let added = 0;
 
         newRecords.forEach(r => {
             const sig = `${r.vendor}-${r.amount}-${r.ministry}`;
             if (!existingSigs.has(sig)) {
-                r.id = finalData.length + 1; // Simple increment ID
+                r.id = finalData.length + 1;
                 finalData.push(r);
                 existingSigs.add(sig);
                 added++;
@@ -237,7 +293,6 @@ async function saveData(newRecords) {
     }
 }
 
-// Allow CLI execution
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   scrape();
 }
