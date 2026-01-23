@@ -11,18 +11,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '50mb' }));
 
-app.use((req, res, next) => {
-  if (!req.url.endsWith('.js') && !req.url.endsWith('.css')) {
-    console.log(`[Request] ${req.method} ${req.url}`);
-  }
-  next();
-});
-
-console.log('GovWatch Server: Hybrid Mode Active');
-
 // Static
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.static(path.join(__dirname, '../dist')));
+
+// Serve Debug Logs
+app.use('/debug_logs', express.static(path.join(__dirname, '../public/debug_logs')));
 
 // API: Manual Update
 app.post('/api/update-data', (req, res) => {
@@ -38,11 +32,10 @@ app.post('/api/update-data', (req, res) => {
   }
 });
 
-// API: Trigger Scraper (Robust)
+// API: Trigger Scraper
 app.post('/api/trigger-scrape', async (req, res) => {
   console.log('[Admin] Triggering server-side scraper...');
   try {
-    // IMPORTANT: Await the scrape so we catch errors here, preventing server crash
     await scrape(); 
     
     // Check results
@@ -56,8 +49,7 @@ app.post('/api/trigger-scrape', async (req, res) => {
     res.json({ success: true, count, message: 'Scrape completed.' });
   } catch (error) {
     console.error('[Admin] Scraper execution failed:', error);
-    // Return 200 with error message so frontend can handle it without generic 500
-    res.json({ success: false, message: 'Scraper failed internally. Check server logs.' });
+    res.json({ success: false, message: 'Scraper failed internally. Check debug logs.' });
   }
 });
 
@@ -67,16 +59,6 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
-// Init Data File
-const init = () => {
-  const f = path.join(__dirname, '../public/data.json');
-  if (!fs.existsSync(f)) {
-      fs.mkdirSync(path.dirname(f), { recursive: true });
-      fs.writeFileSync(f, '[]');
-  }
-};
-
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  init();
 });
