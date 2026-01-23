@@ -6,47 +6,62 @@ interface UploadProps {
   onDataLoaded: (data: Record[]) => void;
 }
 
-// THE CLIENT-SIDE SCRIPT
+// UPDATED CLIENT-SIDE SCRIPT FOR CARDS
 const BROWSER_SCRIPT = `
 (function() {
-  console.log("GovWatch Scraper Started...");
-  const rows = document.querySelectorAll('tr, .card, div[role="row"]');
+  console.log("GovWatch Card Scraper Started...");
   const data = [];
   const now = new Date().toISOString();
   
-  rows.forEach((row, index) => {
-    const text = row.innerText;
-    // Look for RM currency
+  // Find all divs that might be cards (contain "RM")
+  const allDivs = Array.from(document.querySelectorAll('div, article, section'));
+  const potentialCards = allDivs.filter(div => {
+     const txt = div.innerText || "";
+     return txt.includes("RM") && txt.length < 2000 && txt.length > 30;
+  });
+  
+  potentialCards.forEach((card, index) => {
+    const text = card.innerText;
+
+    // 1. Price
     const moneyMatch = text.match(/RM\\s?([0-9,.]+)/i);
     if (!moneyMatch) return;
-    
     const amount = parseFloat(moneyMatch[1].replace(/,/g, ''));
     if (isNaN(amount) || amount === 0) return;
 
-    // Extract Vendor
+    // 2. Vendor
     let vendor = "Unknown Vendor";
-    const vMatch = text.match(/(?:Syarikat|Petender|Oleh):?\\s*([^\\n]+)/i);
+    const vMatch = text.match(/(?:Syarikat|Petender|Oleh)[:\\s]*([^\\n]+)/i);
     if (vMatch) vendor = vMatch[1];
+    else if (text.includes("Sdn Bhd")) {
+        const lines = text.split('\\n');
+        const vLine = lines.find(l => l.includes("Sdn Bhd"));
+        if(vLine) vendor = vLine;
+    }
     
-    // Extract Ministry
+    // 3. Ministry
     let ministry = "Unknown Ministry";
-    const mMatch = text.match(/(?:Kementerian|Jabatan):?\\s*([^\\n]+)/i);
+    const mMatch = text.match(/(?:Kementerian|Jabatan)[:\\s]*([^\\n]+)/i);
     if (mMatch) ministry = "Kementerian " + mMatch[1];
 
-    data.push({
-        id: index + 1,
-        date: new Date().toISOString().split('T')[0],
-        ministry: ministry.trim(),
-        vendor: vendor.trim(),
-        amount: amount, 
-        method: window.location.href.includes('direct') ? "Direct Negotiation" : "Open Tender",
-        category: "General",
-        sourceUrl: window.location.href,
-        crawledAt: now
-    });
+    // Dedupe
+    const isDup = data.some(d => d.amount === amount && d.vendor === vendor);
+    if(!isDup) {
+        data.push({
+            id: data.length + 1,
+            date: new Date().toISOString().split('T')[0],
+            ministry: ministry.replace(/[:]/g, '').trim(),
+            vendor: vendor.replace(/[:]/g, '').trim(),
+            amount: amount, 
+            method: window.location.href.includes('direct') ? "Direct Negotiation" : "Open Tender",
+            category: "General",
+            sourceUrl: window.location.href,
+            crawledAt: now
+        });
+    }
   });
 
-  console.log("Extracted " + data.length + " records.");
+  console.log("Extracted " + data.length + " records from cards.");
   if(data.length > 0) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'}));
@@ -55,7 +70,7 @@ const BROWSER_SCRIPT = `
     a.click();
     document.body.removeChild(a);
   } else {
-    alert("No records found on this page. Make sure the table is visible.");
+    alert("No card records found. Ensure you are on the results page.");
   }
 })();
 `.trim();

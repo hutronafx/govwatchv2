@@ -10,7 +10,7 @@ const URL_DN = 'https://myprocurement.treasury.gov.my/archive/direct-negotiation
 const URL_TENDER = 'https://myprocurement.treasury.gov.my/archive/results-tender';
 const OUTPUT_PATH = path.resolve(__dirname, '../public/data.json');
 const LOG_DIR = path.resolve(__dirname, '../public/debug_logs');
-const TIMEOUT_MS = 60000; // Reduced to 60s since we are blocking assets
+const TIMEOUT_MS = 60000; 
 
 // --- LOGGING SYSTEM ---
 let logBuffer = "";
@@ -35,21 +35,22 @@ async function writeLogs() {
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function autoScroll(page) {
-    log("   -> Auto-scrolling...");
+    log("   -> Auto-scrolling to trigger lazy loading cards...");
     try {
         await page.evaluate(async () => {
             await new Promise((resolve) => {
                 let totalHeight = 0;
-                const distance = 100;
+                const distance = 200;
                 const timer = setInterval(() => {
                     const scrollHeight = document.body.scrollHeight;
                     window.scrollBy(0, distance);
                     totalHeight += distance;
-                    if(totalHeight >= scrollHeight || totalHeight > 5000){ // Limit scroll
+                    // Scroll deeper for cards
+                    if(totalHeight >= scrollHeight || totalHeight > 10000){ 
                         clearInterval(timer);
                         resolve();
                     }
-                }, 50);
+                }, 100);
             });
         });
     } catch (e) {
@@ -59,7 +60,7 @@ async function autoScroll(page) {
 
 async function scrape() {
   logBuffer = ""; 
-  log(`=== STARTING SCRAPER V3 (Optimized) ===`);
+  log(`=== STARTING SCRAPER V4 (Card Support) ===`);
   
   let browser;
   let allRecords = [];
@@ -74,21 +75,24 @@ async function scrape() {
       args: [
           '--no-sandbox', 
           '--disable-setuid-sandbox', 
-          '--window-size=1366,768',
+          '--window-size=1920,1080', // Larger window for cards
           '--disable-web-security',
           '--disable-blink-features=AutomationControlled',
           '--disable-features=IsolateOrigins,site-per-process',
-          '--blink-settings=imagesEnabled=false' // Disable images at launch
+          // Note: Re-enabled images in case they are needed for layout, 
+          // but if bandwidth is issue, might need to disable again.
+          // Keeping disabled for speed.
+          '--blink-settings=imagesEnabled=false' 
       ]
     });
     
     const page = await browser.newPage();
     
-    // 1. OPTIMIZATION: Block heavy resources
     await page.setRequestInterception(true);
     page.on('request', (req) => {
         const resourceType = req.resourceType();
-        if (['image', 'stylesheet', 'font', 'media', 'other'].includes(resourceType)) {
+        // Block fonts/images/media
+        if (['image', 'font', 'media'].includes(resourceType)) {
             req.abort();
         } else {
             req.continue();
@@ -96,14 +100,13 @@ async function scrape() {
     });
 
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.setViewport({ width: 1366, height: 768 });
+    await page.setViewport({ width: 1920, height: 1080 });
 
-    // Console Forwarding
+    // Console & API Sniffing
     page.on('console', msg => {
         if(!msg.text().includes('ERR_')) log(`[BROWSER] ${msg.text().substring(0, 100)}...`);
     });
 
-    // API Sniffing
     page.on('response', async (response) => {
         try {
             const url = response.url();
@@ -111,10 +114,12 @@ async function scrape() {
             if (type && (type.includes('json') || type.includes('plain')) && !url.includes('google')) {
                 const text = await response.text();
                 if (text.includes('amount') || text.includes('nilai')) {
-                    log(`[API] Captured data from: ${url}`);
-                    const json = JSON.parse(text);
-                    const extracted = normalizeApiData(json, url);
-                    if (extracted.length > 0) allRecords.push(...extracted);
+                    // log(`[API] Captured potential JSON data from: ${url}`);
+                    try {
+                        const json = JSON.parse(text);
+                        const extracted = normalizeApiData(json, url);
+                        if (extracted.length > 0) allRecords.push(...extracted);
+                    } catch(e) {}
                 }
             }
         } catch (e) { }
@@ -122,40 +127,40 @@ async function scrape() {
 
     // --- NAVIGATION ---
     const navigate = async (url, label) => {
-        log(`Navigating to ${label}...`);
+        log(`Navigating to ${label} (Card Mode)...`);
         try {
+            // Using load instead of networkidle to be faster
             await page.goto(url, { waitUntil: 'domcontentloaded', timeout: TIMEOUT_MS });
             
-            // Fail-fast check
-            const bodyText = await page.evaluate(() => document.body.innerText);
-            if (bodyText.includes("site can’t be reached") || bodyText.includes("ERR_CONNECTION_TIMED_OUT")) {
-                throw new Error("Target site is unreachable from this server (IP Blocked/Timeout).");
-            }
-
-            await sleep(3000);
+            // Wait for cards to likely appear
+            await sleep(5000); 
             await autoScroll(page);
+            await sleep(2000); // Wait after scroll
+            
             await page.screenshot({ path: path.join(LOG_DIR, `${label}.png`) });
         } catch (e) {
-            log(`[WARN] ${label} navigation failed: ${e.message}`);
+            log(`[WARN] ${label} navigation issue: ${e.message}`);
+            // Even if it timed out, we try to scrape what loaded
+            try { await page.screenshot({ path: path.join(LOG_DIR, `${label}_timeout.png`) }); } catch {}
         }
     };
 
     await navigate(URL_DN, 'direct_nego');
     await navigate(URL_TENDER, 'tenders');
 
-    // --- FALLBACK SCRAPE ---
+    // --- CARD-BASED VISUAL SCRAPE ---
     if (allRecords.length === 0) {
-        log("No API data found. Attempting DOM scrape...");
+        log("No API data found. Attempting CARD-BASED DOM scrape...");
         const visualRecords = await scrapeVisual(page);
+        log(`Visual scrape found ${visualRecords.length} items.`);
         allRecords.push(...visualRecords);
     }
 
     if (allRecords.length === 0) {
         log("!!! FAILURE: 0 RECORDS FOUND !!!");
-        log("SUGGESTION: The server IP might be blocked. Use the Client-Side Script in the 'Upload' tab.");
+        log("Tip: Use the Browser Script in the Upload tab.");
         const html = await page.content();
         await fs.writeFile(path.join(LOG_DIR, 'final_dom_dump.html'), html);
-        await page.screenshot({ path: path.join(LOG_DIR, 'final_error_state.png'), fullPage: true });
     } else {
         await saveData(allRecords);
     }
@@ -210,36 +215,77 @@ function normalizeApiData(json, sourceUrl) {
     return results;
 }
 
+// UPDATED: Looks for CARDS (Divs) instead of Tables
 async function scrapeVisual(page) {
     return await page.evaluate(() => {
         const results = [];
-        const rows = document.querySelectorAll('tr, div.card, div[role="row"]');
-        rows.forEach(el => {
-            const text = el.innerText;
-            const moneyMatch = text.match(/RM\s?([0-9,.]+)/i);
-            if (!moneyMatch) return;
+        
+        // Find all DIVs that might be cards
+        const allDivs = Array.from(document.querySelectorAll('div, article, section'));
+        
+        // Heuristic: A card usually contains a price (RM) and a Ministry/Vendor label
+        const potentialCards = allDivs.filter(div => {
+            const txt = div.innerText || "";
+            // Too short = likely just a label or button
+            if (txt.length < 30) return false;
+            // Too long = likely the whole body container
+            if (txt.length > 2000) return false;
             
-            const amount = parseFloat(moneyMatch[1].replace(/,/g, ''));
-            if(amount === 0) return;
-
-            let vendor = "Unknown Vendor";
-            if (text.includes("Syarikat")) vendor = text.split("Syarikat")[1].split('\n')[0];
-            else if (text.includes("Petender")) vendor = text.split("Petender")[1].split('\n')[0];
+            // Must have currency
+            if (!txt.includes("RM")) return false;
             
-            let ministry = "Unknown Ministry";
-            if (text.includes("Kementerian")) ministry = "Kementerian" + text.split("Kementerian")[1].split('\n')[0];
-            
-            results.push({
-                ministry: ministry.replace(/[:\n]/g, '').trim(),
-                vendor: vendor.replace(/[:\n]/g, '').trim(),
-                amount,
-                method: document.location.href.includes('direct') ? "Direct Negotiation" : "Open Tender",
-                category: "General",
-                date: new Date().toISOString().split('T')[0],
-                sourceUrl: document.location.href,
-                crawledAt: new Date().toISOString()
-            });
+            // Must have some entity keyword
+            const keywords = ["Kementerian", "Ministry", "Jabatan", "Syarikat", "Vendor", "Petender"];
+            return keywords.some(kw => txt.includes(kw));
         });
+
+        // Parse each potential card
+        potentialCards.forEach(card => {
+            const text = card.innerText;
+            
+            // 1. Extract Amount
+            const moneyMatch = text.match(/RM\s?([0-9,.]+)/i);
+            if (!moneyMatch) return; // Skip if no price found in this specific div
+            const amount = parseFloat(moneyMatch[1].replace(/,/g, ''));
+            if (isNaN(amount) || amount === 0) return;
+
+            // 2. Extract Ministry
+            let ministry = "Unknown Ministry";
+            // Look for "Kementerian ..." up to newline
+            const minMatch = text.match(/(?:Kementerian|Ministry|Jabatan|Agency)(.*?)(?:\n|$)/i);
+            if (minMatch) ministry = minMatch[0].trim();
+
+            // 3. Extract Vendor
+            let vendor = "Unknown Vendor";
+            const venMatch = text.match(/(?:Syarikat|Vendor|Petender|Oleh)(.*?)(?:\n|$)/i);
+            if (venMatch) vendor = venMatch[0].replace(/(?:Syarikat|Vendor|Petender|Oleh)[:\s]*/i, '').trim();
+
+            // 4. Extract Date
+            let date = new Date().toISOString().split('T')[0];
+            const dateMatch = text.match(/(\d{2}[-/.]\d{2}[-/.]\d{4})/);
+            if (dateMatch) {
+                // simple normalization if needed, mostly just take the string
+                date = dateMatch[0];
+            }
+
+            // Deduplicate: If we already have a record with this exact amount and vendor (approx), skip
+            // (Because nested divs might triggers this multiple times for the same card)
+            const isDuplicate = results.some(r => r.amount === amount && r.vendor === vendor);
+            
+            if (!isDuplicate && ministry.length < 150 && vendor.length < 150) {
+                 results.push({
+                    ministry: ministry.replace(/[:]/g, '').trim(),
+                    vendor: vendor.replace(/[:]/g, '').trim(),
+                    amount,
+                    method: document.location.href.includes('direct') ? "Direct Negotiation" : "Open Tender",
+                    category: "General",
+                    date,
+                    sourceUrl: document.location.href,
+                    crawledAt: new Date().toISOString()
+                });
+            }
+        });
+
         return results;
     });
 }
