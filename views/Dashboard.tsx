@@ -29,6 +29,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [filterMethod, setFilterMethod] = useState<string>('All');
 
+  // Refresh / Scrape State
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshFeedback, setRefreshFeedback] = useState<{ type: 'success' | 'error' | 'info'; msg: string } | null>(null);
+
   // LOADING
   if (isLoading) {
     return (
@@ -39,8 +43,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
     );
   }
 
-  // EMPTY
-  if (records.length === 0) {
+  // --- REFRESH HANDLER ---
+  const handleRefreshData = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setRefreshFeedback({ type: 'info', msg: 'Scraping live data... This may take ~1 minute.' });
+
+    try {
+      const res = await fetch('/api/trigger-scrape', { method: 'POST' });
+      const data = await res.json();
+
+      if (data.success) {
+        setRefreshFeedback({ type: 'success', msg: `Updated! Found ${data.count} records. Reloading...` });
+        // Reload page to fetch the new data.json from disk
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+         setRefreshFeedback({ type: 'error', msg: data.message || 'Scrape failed. Check logs.' });
+         setIsRefreshing(false);
+      }
+    } catch (e) {
+      setRefreshFeedback({ type: 'error', msg: 'Network error connecting to scraper.' });
+      setIsRefreshing(false);
+    }
+  };
+
+  // EMPTY STATE (Only if really 0 records)
+  if (records.length === 0 && !isRefreshing) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn p-4">
         <div className="bg-gw-card border border-gw-border rounded-full p-6 mb-6">
@@ -48,8 +76,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
         </div>
         <h2 className="text-2xl font-bold text-white mb-2">No Records Available</h2>
         <p className="text-gw-muted max-w-md mb-8">
-          The database is currently empty. Please update data via the Admin Panel.
+          The database is currently empty. Please update data via the Admin Panel or try refreshing below.
         </p>
+        <button
+            onClick={handleRefreshData}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-6 py-3 bg-gw-success text-gw-bg rounded-lg font-bold hover:bg-gw-success/90 transition-all"
+        >
+            <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Running Scraper...' : 'Fetch Initial Data'}
+        </button>
+        {refreshFeedback && (
+            <p className={`mt-4 text-sm ${refreshFeedback.type === 'error' ? 'text-gw-danger' : 'text-blue-400'}`}>
+                {refreshFeedback.msg}
+            </p>
+        )}
       </div>
     );
   }
@@ -148,12 +189,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   return (
     <div className="space-y-8 animate-fadeIn pb-12">
       
-      {/* Header with Last Updated */}
-      <div className="flex justify-end">
+      {/* Header with Refresh & Last Updated */}
+      <div className="flex flex-col md:flex-row justify-end items-end md:items-center gap-4">
+        
+        {/* Feedback Message */}
+        {refreshFeedback && (
+            <div className={`text-xs px-3 py-1.5 rounded-full border font-medium ${
+                refreshFeedback.type === 'error' ? 'bg-gw-danger/10 text-gw-danger border-gw-danger/20' :
+                refreshFeedback.type === 'success' ? 'bg-gw-success/10 text-gw-success border-gw-success/20' :
+                'bg-blue-500/10 text-blue-400 border-blue-500/20'
+            }`}>
+                {refreshFeedback.msg}
+            </div>
+        )}
+
+        {/* Refresh Button */}
+        <button 
+            onClick={handleRefreshData}
+            disabled={isRefreshing}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all border shadow-sm ${
+                isRefreshing 
+                ? 'bg-gw-card text-gw-muted border-gw-border cursor-not-allowed opacity-70' 
+                : 'bg-gw-success text-gw-bg hover:bg-gw-success/90 border-gw-success'
+            }`}
+        >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Syncing...' : 'Refresh Data'}
+        </button>
+
+        {/* Last Updated Badge */}
         {lastCrawlDate && (
-             <div className="flex items-center gap-2 text-xs text-gw-muted bg-gw-card px-3 py-1 rounded-full border border-gw-border">
+             <div className="flex items-center gap-2 text-xs text-gw-muted bg-gw-card px-3 py-2 rounded-lg border border-gw-border">
                 <Clock className="w-3 h-3" />
-                Data Last Updated: {new Date(lastCrawlDate).toLocaleDateString()}
+                Updated: {new Date(lastCrawlDate).toLocaleDateString()}
              </div>
         )}
       </div>
