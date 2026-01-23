@@ -1,10 +1,64 @@
 import React, { useState } from 'react';
-import { Upload as UploadIcon, FileJson, AlertTriangle, Lock, CheckCircle, Copy, Terminal, Server, Play, Loader2, Download, FileText, Image, ChevronDown, ChevronUp } from 'lucide-react';
+import { Upload as UploadIcon, FileJson, AlertTriangle, Lock, CheckCircle, Copy, Terminal, Server, Play, Loader2, Download, Image, Code } from 'lucide-react';
 import { Record } from '../types';
 
 interface UploadProps {
   onDataLoaded: (data: Record[]) => void;
 }
+
+// THE CLIENT-SIDE SCRIPT
+const BROWSER_SCRIPT = `
+(function() {
+  console.log("GovWatch Scraper Started...");
+  const rows = document.querySelectorAll('tr, .card, div[role="row"]');
+  const data = [];
+  const now = new Date().toISOString();
+  
+  rows.forEach((row, index) => {
+    const text = row.innerText;
+    // Look for RM currency
+    const moneyMatch = text.match(/RM\\s?([0-9,.]+)/i);
+    if (!moneyMatch) return;
+    
+    const amount = parseFloat(moneyMatch[1].replace(/,/g, ''));
+    if (isNaN(amount) || amount === 0) return;
+
+    // Extract Vendor
+    let vendor = "Unknown Vendor";
+    const vMatch = text.match(/(?:Syarikat|Petender|Oleh):?\\s*([^\\n]+)/i);
+    if (vMatch) vendor = vMatch[1];
+    
+    // Extract Ministry
+    let ministry = "Unknown Ministry";
+    const mMatch = text.match(/(?:Kementerian|Jabatan):?\\s*([^\\n]+)/i);
+    if (mMatch) ministry = "Kementerian " + mMatch[1];
+
+    data.push({
+        id: index + 1,
+        date: new Date().toISOString().split('T')[0],
+        ministry: ministry.trim(),
+        vendor: vendor.trim(),
+        amount: amount, 
+        method: window.location.href.includes('direct') ? "Direct Negotiation" : "Open Tender",
+        category: "General",
+        sourceUrl: window.location.href,
+        crawledAt: now
+    });
+  });
+
+  console.log("Extracted " + data.length + " records.");
+  if(data.length > 0) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'}));
+    a.download = 'govwatch_data.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } else {
+    alert("No records found on this page. Make sure the table is visible.");
+  }
+})();
+`.trim();
 
 export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -13,7 +67,6 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [status, setStatus] = useState<'idle' | 'processing' | 'error' | 'success'>('idle');
   const [scrapeStatus, setScrapeStatus] = useState<'idle' | 'running' | 'success' | 'error' | 'warning'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
   const [scrapeMsg, setScrapeMsg] = useState('');
   
   // Debug Log State
@@ -25,17 +78,13 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pin === ADMIN_PIN) {
-        setIsAuthenticated(true);
-    } else {
-        alert("Incorrect Access Code");
-        setPin('');
-    }
+    if (pin === ADMIN_PIN) setIsAuthenticated(true);
+    else { alert("Incorrect Access Code"); setPin(''); }
   };
 
   const handleAutoScrape = async () => {
     setScrapeStatus('running');
-    setScrapeMsg('Initializing browser & running diagnostics...');
+    setScrapeMsg('Initializing browser & optimizing connection...');
     setLogContent('');
     setIsLogOpen(false);
     
@@ -44,13 +93,12 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
         const result = await response.json();
         
         if (result.success) {
-            // Fresh fetch
             const dataRes = await fetch('/data.json');
             const dataJson = await dataRes.json();
             
             if (result.count === 0) {
                 setScrapeStatus('warning');
-                setScrapeMsg("Scraper ran but found 0 records. Debug info generated.");
+                setScrapeMsg("Scraper ran but found 0 records. Server IP might be blocked.");
             } else {
                 setScrapeStatus('success');
                 setScrapeMsg(`Success! Total records: ${result.count}`);
@@ -76,44 +124,32 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
         const text = await res.text();
         setLogContent(text);
         setIsLogOpen(true);
-    } catch (e) {
-        alert("Could not load log file. It may not exist yet.");
-    } finally {
-        setIsLoadingLog(false);
-    }
+    } catch (e) { alert("Could not load log file."); } 
+    finally { setIsLoadingLog(false); }
   };
 
-  const copyLogToClipboard = () => {
-    navigator.clipboard.writeText(logContent);
-    alert("Log copied to clipboard! You can now paste it into the chat.");
+  const copyScript = () => {
+    navigator.clipboard.writeText(BROWSER_SCRIPT);
+    alert("Script copied! Paste it into your browser console (F12) on the government portal.");
   };
 
-  // ... manual upload handlers ...
+  // Manual Upload Handlers
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = () => { setIsDragging(false); };
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  };
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) processFile(file);
-  };
+  const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); const file = e.dataTransfer.files[0]; if (file) processFile(file); };
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) processFile(file); };
   const processFile = (file: File) => {
-    if (!file.name.endsWith('.json')) { setStatus('error'); setErrorMessage('Invalid JSON'); return; }
+    if (!file.name.endsWith('.json')) { setStatus('error'); return; }
     setStatus('processing');
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const text = e.target?.result as string;
-        const rawData = JSON.parse(text);
+        const rawData = JSON.parse(e.target?.result as string);
         if (!Array.isArray(rawData)) throw new Error("Not an array");
         await fetch('/api/update-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(rawData) });
         setStatus('success');
         setTimeout(() => { onDataLoaded(rawData); }, 1500);
-      } catch (err) { setStatus('error'); setErrorMessage('Failed to process file.'); }
+      } catch (err) { setStatus('error'); }
     };
     reader.readAsText(file);
   };
@@ -148,104 +184,83 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
         
         {/* AUTO UPDATE */}
         <div className="bg-gw-card border border-gw-border rounded-xl p-6 flex flex-col relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-gw-success to-blue-500"></div>
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <Server className="w-5 h-5 text-gw-success" /> Auto-Update
+                <Server className="w-5 h-5 text-gw-success" /> Server Scraper
             </h3>
             
-            <div className="mt-auto space-y-3">
+            <div className="space-y-3">
+                <p className="text-xs text-gw-muted">Attempts to scrape from the server. May fail if IP is blocked.</p>
                 {scrapeStatus === 'idle' && (
                     <button onClick={handleAutoScrape} className="w-full py-4 bg-gw-success hover:bg-gw-success/90 text-gw-bg font-bold rounded-lg transition-all flex items-center justify-center gap-2">
-                        <Play className="w-5 h-5" /> Start Scraper
+                        <Play className="w-5 h-5" /> Start Auto-Scrape
                     </button>
                 )}
-                
                 {scrapeStatus === 'running' && (
                     <div className="w-full py-4 bg-gw-card border border-gw-border rounded-lg flex flex-col items-center justify-center gap-2 text-gw-success">
-                        <div className="flex items-center gap-2"><Loader2 className="w-5 h-5 animate-spin" /><span>Scraping...</span></div>
+                        <div className="flex items-center gap-2"><Loader2 className="w-5 h-5 animate-spin" /><span>Running...</span></div>
                         <span className="text-xs text-gw-muted">{scrapeMsg}</span>
                     </div>
                 )}
-
-                {scrapeStatus === 'success' && (
-                    <div className="w-full py-4 bg-gw-success/10 border border-gw-success/20 rounded-lg flex flex-col items-center justify-center gap-1 text-gw-success font-bold">
-                        <div className="flex items-center gap-2"><CheckCircle className="w-5 h-5" /><span>Complete!</span></div>
-                        <span className="text-xs font-normal opacity-80">{scrapeMsg}</span>
+                {(scrapeStatus === 'error' || scrapeStatus === 'warning') && (
+                    <div className="mt-2 p-3 bg-gw-danger/10 border border-gw-danger/30 rounded text-center">
+                        <div className="text-gw-danger font-bold text-sm mb-2 flex items-center justify-center gap-2">
+                            <AlertTriangle className="w-4 h-4" /> Issue Detected
+                        </div>
+                        <button onClick={fetchLog} className="text-xs underline text-gw-text hover:text-white flex items-center justify-center gap-1 mx-auto">
+                           {isLoadingLog ? <Loader2 className="w-3 h-3 animate-spin"/> : <Terminal className="w-3 h-3" />}
+                           {isLogOpen ? "Refresh Log" : "View Debug Log"}
+                        </button>
                     </div>
                 )}
+                {isLogOpen && (
+                    <textarea readOnly value={logContent} className="w-full h-32 bg-black text-green-400 font-mono text-[10px] p-2 rounded border border-gw-border resize-none" />
+                )}
             </div>
+        </div>
 
-            {/* DEBUG PANEL */}
-            {(scrapeStatus === 'error' || scrapeStatus === 'warning') && (
-                <div className="mt-4 p-4 bg-gw-danger/10 border border-gw-danger/30 rounded-lg animate-fadeIn">
-                    <div className="flex items-center justify-between gap-2 text-gw-danger font-bold mb-2">
-                        <div className="flex items-center gap-2">
-                             <AlertTriangle className="w-4 h-4" />
-                             <span>Scraper Issues Detected</span>
-                        </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                        <button 
-                            onClick={fetchLog} 
-                            className="flex items-center justify-center gap-2 p-2 bg-gw-bg rounded border border-gw-border hover:border-gw-text transition-colors text-xs text-gw-text"
-                            disabled={isLoadingLog}
-                        >
-                            {isLoadingLog ? <Loader2 className="w-3 h-3 animate-spin" /> : <Terminal className="w-3 h-3" />}
-                            {isLogOpen ? 'Refresh Log' : 'View Log'}
-                        </button>
-                        
-                        <div className="flex gap-1">
-                             <a href="/debug_logs/final_error_state.png" target="_blank" className="flex-1 flex items-center justify-center p-2 bg-gw-bg rounded border border-gw-border hover:border-gw-text transition-colors" title="View Screenshot">
-                                <Image className="w-3 h-3 text-blue-400" />
-                            </a>
-                            <a href="/debug_logs/final_dom_dump.html" target="_blank" className="flex-1 flex items-center justify-center p-2 bg-gw-bg rounded border border-gw-border hover:border-gw-text transition-colors" title="View HTML">
-                                <FileJson className="w-3 h-3 text-orange-400" />
-                            </a>
-                        </div>
-                    </div>
-
-                    {isLogOpen && (
-                        <div className="animate-fadeIn">
-                            <textarea 
-                                readOnly 
-                                value={logContent} 
-                                className="w-full h-32 bg-black text-green-400 font-mono text-[10px] p-2 rounded border border-gw-border focus:outline-none mb-2 resize-none"
-                            />
-                            <button 
-                                onClick={copyLogToClipboard}
-                                className="w-full py-1 bg-gw-card hover:bg-gw-border text-xs text-white rounded border border-gw-border flex items-center justify-center gap-2 transition-colors"
-                            >
-                                <Copy className="w-3 h-3" /> Copy Log to Clipboard
-                            </button>
-                            <p className="text-[10px] text-gw-muted mt-2 text-center">
-                                Paste this log into the chat for instant debugging.
-                            </p>
-                        </div>
-                    )}
-                </div>
-            )}
+        {/* BROWSER SCRIPT */}
+        <div className="bg-gw-card border border-gw-border rounded-xl p-6 flex flex-col">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <Code className="w-5 h-5 text-blue-400" /> Browser Script
+            </h3>
+            <p className="text-xs text-gw-muted mb-4">
+                If the server scraper is blocked, copy this code and run it in your browser console on the government portal.
+            </p>
+            <div className="flex-1 bg-black rounded border border-gw-border p-3 relative group">
+                <code className="text-gw-success text-[10px] font-mono break-all line-clamp-[10]">
+                    {BROWSER_SCRIPT}
+                </code>
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                <button 
+                    onClick={copyScript}
+                    className="absolute bottom-2 right-2 bg-gw-bg border border-gw-border hover:bg-gw-card text-white text-xs px-3 py-1 rounded flex items-center gap-2 transition-colors"
+                >
+                    <Copy className="w-3 h-3" /> Copy Code
+                </button>
+            </div>
         </div>
 
         {/* MANUAL UPLOAD */}
-        <div className="lg:col-span-2 bg-gw-bg/50 p-6 rounded-xl border border-gw-border">
+        <div className="bg-gw-bg/50 p-6 rounded-xl border border-gw-border flex flex-col">
              <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-                <FileJson className="w-5 h-5 text-gw-muted" /> Manual Upload
+                <FileJson className="w-5 h-5 text-orange-400" /> JSON Upload
              </h3>
-             <div className={`bg-gw-card border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 h-64 flex flex-col justify-center ${isDragging ? 'border-gw-success bg-gw-success/5' : status === 'error' ? 'border-gw-danger' : 'border-gw-border'}`} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+             <div className={`bg-gw-card border-2 border-dashed rounded-xl p-4 text-center transition-all flex-1 flex flex-col justify-center ${isDragging ? 'border-gw-success' : status === 'error' ? 'border-gw-danger' : 'border-gw-border'}`} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
                 {status === 'idle' && (
                 <>
-                    <UploadIcon className="w-8 h-8 text-gw-muted mx-auto mb-4" />
-                    <p className="text-gw-muted text-sm mb-4">Drag & drop <code>govwatch_data.json</code></p>
-                    <input type="file" id="file-upload" className="hidden" accept=".json" onChange={handleFileSelect} />
-                    <label htmlFor="file-upload" className="inline-flex items-center justify-center px-4 py-2 border border-gw-border text-sm font-medium rounded shadow-sm text-gw-text bg-gw-bg hover:bg-gw-card cursor-pointer transition-colors">Browse Files</label>
+                    <UploadIcon className="w-8 h-8 text-gw-muted mx-auto mb-2" />
+                    <p className="text-gw-muted text-xs mb-2">Drop <code>govwatch_data.json</code> here</p>
+                    <label className="text-xs text-blue-400 cursor-pointer hover:underline">
+                        Browse Files <input type="file" className="hidden" accept=".json" onChange={handleFileSelect} />
+                    </label>
                 </>
                 )}
-                {status === 'processing' && (<div><Loader2 className="w-8 h-8 text-gw-success animate-spin mx-auto mb-4" /><p>Processing...</p></div>)}
-                {status === 'success' && (<div><CheckCircle className="w-10 h-10 text-gw-success mx-auto mb-4" /><p className="font-bold">Success</p></div>)}
-                {status === 'error' && (<div><AlertTriangle className="w-10 h-10 text-gw-danger mx-auto mb-4" /><p className="text-gw-danger text-xs">{errorMessage}</p><button onClick={() => setStatus('idle')} className="underline text-xs mt-2">Try Again</button></div>)}
+                {status === 'processing' && <Loader2 className="w-8 h-8 text-gw-success animate-spin mx-auto" />}
+                {status === 'success' && <CheckCircle className="w-8 h-8 text-gw-success mx-auto" />}
+                {status === 'error' && <div className="text-gw-danger text-xs">Invalid File</div>}
             </div>
         </div>
+
       </div>
     </div>
   );
