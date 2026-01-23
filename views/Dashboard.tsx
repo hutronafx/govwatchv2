@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Record as ProcurementRecord } from '../types';
 import { StatCard } from '../components/StatCard';
 import { formatMoney, translateMinistry, downloadCSV } from '../utils';
-import { ArrowUpRight, Search, FileText, RefreshCw, Filter, ArrowUpDown, Download, Clock } from 'lucide-react';
+import { ArrowUpRight, Search, FileText, RefreshCw, Filter, ArrowUpDown, Download, Clock, Briefcase } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 
 interface DashboardProps {
@@ -27,6 +27,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'value'>('date');
   const [filterCategory, setFilterCategory] = useState<string>('All');
+  const [filterMethod, setFilterMethod] = useState<string>('All');
 
   // LOADING
   if (isLoading) {
@@ -111,9 +112,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
       // Search matches either raw Malay name, Translated English name, or Vendor
       const matchesSearch = ministryRaw.includes(search) || ministryEn.includes(search) || vendor.includes(search);
       
+      // Category Filter
       const matchesCategory = filterCategory === 'All' || (r.category || '').includes(filterCategory);
 
-      return matchesSearch && matchesCategory;
+      // Method Filter
+      let matchesMethod = false;
+      const methodRaw = (r.method || '').toLowerCase();
+      if (filterMethod === 'All') {
+          matchesMethod = true;
+      } else if (filterMethod === 'Direct Negotiation') {
+          // Robust check for English or Malay terms
+          matchesMethod = methodRaw.includes('direct') || methodRaw.includes('rundingan');
+      } else if (filterMethod === 'Open Tender') {
+          matchesMethod = methodRaw.includes('open') || methodRaw.includes('tender') || methodRaw.includes('terbuka');
+      } else {
+          matchesMethod = methodRaw.includes(filterMethod.toLowerCase());
+      }
+
+      return matchesSearch && matchesCategory && matchesMethod;
     }).sort((a,b) => {
       // Fix: Ensure numeric arithmetic for sorting
       if (sortBy === 'value') return (b.amount || 0) - (a.amount || 0);
@@ -123,7 +139,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
       const dateB = new Date(b.date).getTime() || 0;
       return dateB - dateA;
     });
-  }, [records, searchTerm, filterCategory, sortBy]);
+  }, [records, searchTerm, filterCategory, filterMethod, sortBy]);
 
   const handleExport = () => {
     downloadCSV(filteredRecords, `govwatch_export_${new Date().toISOString().split('T')[0]}.csv`);
@@ -206,40 +222,57 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
       {/* Table Section */}
       <div className="bg-gw-card border border-gw-border rounded-lg overflow-hidden flex flex-col">
           {/* Table Controls */}
-          <div className="p-4 border-b border-gw-border flex flex-col md:flex-row justify-between items-center gap-4 bg-gw-bg/30">
-            <div className="flex items-center gap-2 w-full md:w-auto">
-                 <h2 className="text-lg font-bold text-white flex items-center gap-2 mr-4">
+          <div className="p-4 border-b border-gw-border flex flex-col xl:flex-row justify-between items-center gap-4 bg-gw-bg/30">
+            <div className="flex flex-col md:flex-row items-center gap-2 w-full xl:w-auto">
+                 <h2 className="text-lg font-bold text-white flex items-center gap-2 mr-2">
                     <FileText className="w-5 h-5" /> Recent Awards
                  </h2>
-                 {/* Sort Dropdown */}
-                 <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1">
-                    <ArrowUpDown className="w-4 h-4 text-gw-muted mr-2" />
-                    <select 
-                        value={sortBy} 
-                        onChange={(e) => setSortBy(e.target.value as any)}
-                        className="bg-transparent text-sm text-gw-text focus:outline-none"
-                    >
-                        <option value="date">Newest First</option>
-                        <option value="value">Highest Value</option>
-                    </select>
-                 </div>
-                 {/* Filter Dropdown */}
-                 <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1 ml-2">
-                    <Filter className="w-4 h-4 text-gw-muted mr-2" />
-                    <select 
-                        value={filterCategory} 
-                        onChange={(e) => setFilterCategory(e.target.value)}
-                        className="bg-transparent text-sm text-gw-text focus:outline-none"
-                    >
-                        <option value="All">All Categories</option>
-                        <option value="Kerja">Works (Kerja)</option>
-                        <option value="Bekalan">Supplies (Bekalan)</option>
-                        <option value="Perkhidmatan">Services (Perkhidmatan)</option>
-                    </select>
+                 <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start w-full md:w-auto">
+                    {/* Sort Dropdown */}
+                    <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1">
+                        <ArrowUpDown className="w-4 h-4 text-gw-muted mr-2" />
+                        <select 
+                            value={sortBy} 
+                            onChange={(e) => setSortBy(e.target.value as any)}
+                            className="bg-transparent text-sm text-gw-text focus:outline-none"
+                        >
+                            <option value="date">Newest First</option>
+                            <option value="value">Highest Value</option>
+                        </select>
+                    </div>
+
+                    {/* Category Filter */}
+                    <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1">
+                        <Filter className="w-4 h-4 text-gw-muted mr-2" />
+                        <select 
+                            value={filterCategory} 
+                            onChange={(e) => setFilterCategory(e.target.value)}
+                            className="bg-transparent text-sm text-gw-text focus:outline-none max-w-[120px]"
+                        >
+                            <option value="All">All Categories</option>
+                            <option value="Kerja">Works</option>
+                            <option value="Bekalan">Supplies</option>
+                            <option value="Perkhidmatan">Services</option>
+                        </select>
+                    </div>
+
+                    {/* Method Filter */}
+                    <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1">
+                        <Briefcase className="w-4 h-4 text-gw-muted mr-2" />
+                        <select 
+                            value={filterMethod} 
+                            onChange={(e) => setFilterMethod(e.target.value)}
+                            className="bg-transparent text-sm text-gw-text focus:outline-none"
+                        >
+                            <option value="All">All Methods</option>
+                            <option value="Open Tender">Open Tender</option>
+                            <option value="Direct Negotiation">Direct Negotiation</option>
+                        </select>
+                    </div>
                  </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="flex items-center gap-2 w-full xl:w-auto justify-end">
                 <div className="relative w-full md:w-64">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gw-muted" />
                     <input 
@@ -254,7 +287,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                 <button 
                   onClick={handleExport}
                   title="Download CSV"
-                  className="p-2 bg-gw-bg border border-gw-border rounded-full text-gw-success hover:bg-gw-success/10 transition-colors"
+                  className="p-2 bg-gw-bg border border-gw-border rounded-full text-gw-success hover:bg-gw-success/10 transition-colors shrink-0"
                 >
                   <Download className="w-4 h-4" />
                 </button>
@@ -269,7 +302,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                   <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">Ministry</th>
                   <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">Vendor</th>
                   <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right">Value</th>
-                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right">Category</th>
+                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right">Method & Category</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gw-border">
@@ -292,12 +325,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                     </td>
                     <td className="px-6 py-4 text-gw-muted truncate max-w-[200px]" title={r.vendor}>{r.vendor}</td>
                     <td className="px-6 py-4 text-right font-bold text-gw-text font-mono">{formatMoney(r.amount)}</td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        (r.category || '').toLowerCase().includes('kerja')
-                          ? 'bg-gw-danger/10 text-gw-danger border border-gw-danger/20'
-                          : 'bg-gw-success/10 text-gw-success border border-gw-success/20'
+                    <td className="px-6 py-4 text-right whitespace-nowrap flex flex-col gap-1 items-end justify-center h-full">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                         (r.method || '').toLowerCase().includes('direct') || (r.method || '').toLowerCase().includes('rundingan')
+                         ? 'bg-gw-danger/10 text-gw-danger border-gw-danger/20'
+                         : 'bg-blue-400/10 text-blue-400 border-blue-400/20'
                       }`}>
+                         {(r.method || 'Open Tender')}
+                      </span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] text-gw-muted border border-gw-border`}>
                         {r.category || 'General'}
                       </span>
                     </td>

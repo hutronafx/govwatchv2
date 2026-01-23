@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload as UploadIcon, FileJson, AlertTriangle, Lock, CheckCircle, Copy, Terminal, Server, Play, Loader2, Download, FileText, Image } from 'lucide-react';
+import { Upload as UploadIcon, FileJson, AlertTriangle, Lock, CheckCircle, Copy, Terminal, Server, Play, Loader2, Download, FileText, Image, ChevronDown, ChevronUp } from 'lucide-react';
 import { Record } from '../types';
 
 interface UploadProps {
@@ -15,6 +15,11 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
   const [scrapeStatus, setScrapeStatus] = useState<'idle' | 'running' | 'success' | 'error' | 'warning'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [scrapeMsg, setScrapeMsg] = useState('');
+  
+  // Debug Log State
+  const [logContent, setLogContent] = useState<string>('');
+  const [isLogOpen, setIsLogOpen] = useState(false);
+  const [isLoadingLog, setIsLoadingLog] = useState(false);
 
   const ADMIN_PIN = "admin2024";
 
@@ -31,6 +36,8 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
   const handleAutoScrape = async () => {
     setScrapeStatus('running');
     setScrapeMsg('Initializing browser & running diagnostics...');
+    setLogContent('');
+    setIsLogOpen(false);
     
     try {
         const response = await fetch('/api/trigger-scrape', { method: 'POST' });
@@ -61,7 +68,27 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
     }
   };
 
-  // ... manual upload handlers (kept same) ...
+  const fetchLog = async () => {
+    setIsLoadingLog(true);
+    try {
+        const res = await fetch('/debug_logs/debug_log.txt');
+        if (!res.ok) throw new Error("Log file not found");
+        const text = await res.text();
+        setLogContent(text);
+        setIsLogOpen(true);
+    } catch (e) {
+        alert("Could not load log file. It may not exist yet.");
+    } finally {
+        setIsLoadingLog(false);
+    }
+  };
+
+  const copyLogToClipboard = () => {
+    navigator.clipboard.writeText(logContent);
+    alert("Log copied to clipboard! You can now paste it into the chat.");
+  };
+
+  // ... manual upload handlers ...
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = () => { setIsDragging(false); };
   const handleDrop = (e: React.DragEvent) => {
@@ -75,7 +102,6 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
     if (file) processFile(file);
   };
   const processFile = (file: File) => {
-    // ... same as before ...
     if (!file.name.endsWith('.json')) { setStatus('error'); setErrorMessage('Invalid JSON'); return; }
     setStatus('processing');
     const reader = new FileReader();
@@ -152,27 +178,51 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
             {/* DEBUG PANEL */}
             {(scrapeStatus === 'error' || scrapeStatus === 'warning') && (
                 <div className="mt-4 p-4 bg-gw-danger/10 border border-gw-danger/30 rounded-lg animate-fadeIn">
-                    <div className="flex items-center gap-2 text-gw-danger font-bold mb-2">
-                        <AlertTriangle className="w-4 h-4" />
-                        <span>Debug Info Available</span>
+                    <div className="flex items-center justify-between gap-2 text-gw-danger font-bold mb-2">
+                        <div className="flex items-center gap-2">
+                             <AlertTriangle className="w-4 h-4" />
+                             <span>Scraper Issues Detected</span>
+                        </div>
                     </div>
-                    <p className="text-xs text-gw-muted mb-3">
-                        The scraper ran but encountered issues (or 0 records). Download these logs to diagnose:
-                    </p>
-                    <div className="grid grid-cols-3 gap-2">
-                        <a href="/debug_logs/latest.log" target="_blank" download className="flex flex-col items-center p-2 bg-gw-bg rounded border border-gw-border hover:border-gw-text transition-colors">
-                            <FileText className="w-4 h-4 text-gw-text mb-1" />
-                            <span className="text-[10px] text-gw-muted">Log</span>
-                        </a>
-                        <a href="/debug_logs/final_error_state.png" target="_blank" download className="flex flex-col items-center p-2 bg-gw-bg rounded border border-gw-border hover:border-gw-text transition-colors">
-                            <Image className="w-4 h-4 text-blue-400 mb-1" />
-                            <span className="text-[10px] text-gw-muted">Screen</span>
-                        </a>
-                        <a href="/debug_logs/final_dom_dump.html" target="_blank" download className="flex flex-col items-center p-2 bg-gw-bg rounded border border-gw-border hover:border-gw-text transition-colors">
-                            <FileJson className="w-4 h-4 text-orange-400 mb-1" />
-                            <span className="text-[10px] text-gw-muted">HTML</span>
-                        </a>
+                    
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                        <button 
+                            onClick={fetchLog} 
+                            className="flex items-center justify-center gap-2 p-2 bg-gw-bg rounded border border-gw-border hover:border-gw-text transition-colors text-xs text-gw-text"
+                            disabled={isLoadingLog}
+                        >
+                            {isLoadingLog ? <Loader2 className="w-3 h-3 animate-spin" /> : <Terminal className="w-3 h-3" />}
+                            {isLogOpen ? 'Refresh Log' : 'View Log'}
+                        </button>
+                        
+                        <div className="flex gap-1">
+                             <a href="/debug_logs/final_error_state.png" target="_blank" className="flex-1 flex items-center justify-center p-2 bg-gw-bg rounded border border-gw-border hover:border-gw-text transition-colors" title="View Screenshot">
+                                <Image className="w-3 h-3 text-blue-400" />
+                            </a>
+                            <a href="/debug_logs/final_dom_dump.html" target="_blank" className="flex-1 flex items-center justify-center p-2 bg-gw-bg rounded border border-gw-border hover:border-gw-text transition-colors" title="View HTML">
+                                <FileJson className="w-3 h-3 text-orange-400" />
+                            </a>
+                        </div>
                     </div>
+
+                    {isLogOpen && (
+                        <div className="animate-fadeIn">
+                            <textarea 
+                                readOnly 
+                                value={logContent} 
+                                className="w-full h-32 bg-black text-green-400 font-mono text-[10px] p-2 rounded border border-gw-border focus:outline-none mb-2 resize-none"
+                            />
+                            <button 
+                                onClick={copyLogToClipboard}
+                                className="w-full py-1 bg-gw-card hover:bg-gw-border text-xs text-white rounded border border-gw-border flex items-center justify-center gap-2 transition-colors"
+                            >
+                                <Copy className="w-3 h-3" /> Copy Log to Clipboard
+                            </button>
+                            <p className="text-[10px] text-gw-muted mt-2 text-center">
+                                Paste this log into the chat for instant debugging.
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
