@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Dashboard } from './views/Dashboard';
 import { MinistryDetail } from './views/MinistryDetail';
+import { MinistryList } from './views/MinistryList';
+import { VendorList } from './views/VendorList';
 import { Upload } from './views/Upload';
 import { INITIAL_RECORDS } from './data';
 import { ViewConfig, Record } from './types';
@@ -19,19 +21,17 @@ function App() {
         const rawData = await response.json();
         
         // NORMALIZE DATA
-        // Handles both clean scraper data and raw Excel/JSON exports with "__EMPTY" keys
         const cleanData: Record[] = [];
         if (Array.isArray(rawData)) {
              rawData.forEach((item: any, index: number) => {
-                // 1. Skip Header Rows (SheetJS/Excel artifacts)
+                // 1. Skip Header Rows
                 if (item['__EMPTY'] === 'TAJUK SEBUT HARGA' || item['__EMPTY_3'] === 'KEMENTERIAN') return;
 
                 // 2. Map fields
-                // Check if it's already a valid Record (from scraper) or a raw sheet row
                 const ministry = item.ministry || item['__EMPTY_3'] || "Unknown Ministry";
                 const vendor = item.vendor || item['__EMPTY_4'] || "Unknown Vendor";
                 
-                // Parse Amount (Handle "RM 4,000.00" or raw numbers)
+                // Parse Amount
                 let amount = 0;
                 if (typeof item.amount === 'number') amount = item.amount;
                 else if (item['__EMPTY_8']) {
@@ -41,20 +41,21 @@ function App() {
                 }
 
                 // Parse Date
-                // Use decision date (__EMPTY_6) or acceptance date (__EMPTY_7)
                 let date = item.date || item['__EMPTY_6'];
                 if (!date || date === 'TIADA MAKLUMAT') date = item['__EMPTY_7'];
                 if (!date || date === 'TIADA MAKLUMAT') date = new Date().toISOString().split('T')[0];
-                
-                // Clean date if it has time "2025-12-11 04:45:01" -> "2025-12-11"
                 if (date && typeof date === 'string' && date.includes(' ')) {
                     date = date.split(' ')[0];
                 }
 
-                // Map Category/Method
-                const method = item.method || item['__EMPTY_2'] || "Open Tender";
+                // Map Category & Method
+                // Important: __EMPTY_2 is often "KATEGORI PEROLEHAN" (Bekalan, Kerja, Perkhidmatan)
+                // We map this to 'category'.
+                const category = item.category || item['__EMPTY_2'] || "General";
+                
+                // Raw data doesn't explicitly have "Direct Negotiation" column usually, so we default method.
+                const method = item.method || "Open Tender";
 
-                // Only add if it looks like a real record
                 if (ministry !== "Unknown Ministry" || amount > 0) {
                     cleanData.push({
                         id: index + 1,
@@ -62,6 +63,7 @@ function App() {
                         vendor: String(vendor).trim(),
                         amount: amount || 0,
                         method: String(method).trim(),
+                        category: String(category).trim(),
                         date: String(date).trim(),
                         reason: item.reason || null
                     });
@@ -71,11 +73,7 @@ function App() {
 
         if (cleanData.length > 0) {
           setRecords(cleanData);
-        } else {
-            console.warn('Data loaded but no valid records found after normalization.');
         }
-      } else {
-        console.log('No existing data found, starting with empty database.');
       }
     } catch (error) {
       console.warn('Network error checking for data:', error);
@@ -87,7 +85,6 @@ function App() {
   useEffect(() => {
     fetchData();
 
-    // SECRET ROUTE LISTENER
     const checkHash = () => {
       if (window.location.hash === '#secret-admin-panel') {
         setViewConfig({ view: 'upload' });
@@ -99,7 +96,7 @@ function App() {
     return () => window.removeEventListener('hashchange', checkHash);
   }, []);
 
-  const handleNavigate = (view: 'dashboard' | 'upload') => {
+  const handleNavigate = (view: any) => {
     setViewConfig({ view });
     window.scrollTo(0, 0);
     if (view === 'dashboard' && window.location.hash === '#secret-admin-panel') {
@@ -108,7 +105,7 @@ function App() {
   };
 
   const handleMinistryClick = (ministryName: string) => {
-    setViewConfig({ view: 'ministry', ministryName });
+    setViewConfig({ view: 'ministry_detail', ministryName });
     window.scrollTo(0, 0);
   };
 
@@ -127,12 +124,23 @@ function App() {
         />
       )}
       
-      {viewConfig.view === 'ministry' && viewConfig.ministryName && (
+      {viewConfig.view === 'ministry_detail' && viewConfig.ministryName && (
         <MinistryDetail 
           ministryName={viewConfig.ministryName} 
           records={records}
-          onBack={() => handleNavigate('dashboard')}
+          onBack={() => handleNavigate('ministry_list')}
         />
+      )}
+
+      {viewConfig.view === 'ministry_list' && (
+        <MinistryList 
+            records={records} 
+            onSelectMinistry={handleMinistryClick} 
+        />
+      )}
+
+      {viewConfig.view === 'vendor_list' && (
+        <VendorList records={records} />
       )}
 
       {viewConfig.view === 'upload' && (

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Record as ProcurementRecord } from '../types';
 import { StatCard } from '../components/StatCard';
 import { formatMoney } from '../utils';
-import { ArrowUpRight, Search, FileText, RefreshCw } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { ArrowUpRight, Search, FileText, RefreshCw, Filter, ArrowUpDown } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 
 interface DashboardProps {
   records: ProcurementRecord[];
@@ -14,9 +14,9 @@ interface DashboardProps {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-gw-card border border-gw-border p-3 rounded shadow-xl">
-        <p className="text-gw-text font-bold text-sm">{label}</p>
-        <p className="text-gw-success text-sm">{formatMoney(payload[0].value as number)}</p>
+      <div className="bg-gw-card border border-gw-border p-3 rounded shadow-xl z-50">
+        <p className="text-gw-text font-bold text-sm mb-1">{payload[0].name || label}</p>
+        <p className="text-gw-success text-sm font-mono">{formatMoney(payload[0].value as number)}</p>
       </div>
     );
   }
@@ -25,18 +25,20 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMinistryClick }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'date' | 'value'>('date');
+  const [filterCategory, setFilterCategory] = useState<string>('All');
 
-  // LOADING STATE
+  // LOADING
   if (isLoading) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn">
             <RefreshCw className="w-10 h-10 text-gw-success animate-spin mb-4" />
-            <h2 className="text-xl font-bold text-white">Connecting to Database...</h2>
+            <h2 className="text-xl font-bold text-white">Loading Dashboard...</h2>
         </div>
     );
   }
 
-  // EMPTY STATE HANDLER
+  // EMPTY
   if (records.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn p-4">
@@ -45,153 +47,234 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
         </div>
         <h2 className="text-2xl font-bold text-white mb-2">No Records Available</h2>
         <p className="text-gw-muted max-w-md mb-8">
-          The public procurement database is currently being updated. Please check back later.
+          The database is currently empty. Please update data via the Admin Panel.
         </p>
       </div>
     );
   }
-  
-  // Safe filtering that won't crash on undefined values
-  const filteredRecords = records.filter(r => {
-    const ministry = (r.ministry || '').toLowerCase();
-    const vendor = (r.vendor || '').toLowerCase();
-    const search = searchTerm.toLowerCase();
-    return ministry.includes(search) || vendor.includes(search);
-  }).sort((a,b) => {
-    const timeA = new Date(a.date).getTime();
-    const timeB = new Date(b.date).getTime();
-    return timeB - timeA;
-  });
 
+  // --- KPI LOGIC ---
   const totalSpend = records.reduce((acc, r) => acc + (r.amount || 0), 0);
-  const directSpend = records
-    .filter(r => (r.method || '').toLowerCase().includes('direct'))
+  
+  // Use Category for stats since "Method" is often vague in raw data
+  const suppliesSpend = records
+    .filter(r => (r.category || '').toLowerCase().includes('bekalan'))
     .reduce((acc, r) => acc + (r.amount || 0), 0);
-  const share = totalSpend ? (directSpend / totalSpend * 100) : 0;
+  
+  const worksSpend = records
+    .filter(r => (r.category || '').toLowerCase().includes('kerja'))
+    .reduce((acc, r) => acc + (r.amount || 0), 0);
 
-  // Aggregate data for chart
+  const servicesSpend = records
+    .filter(r => (r.category || '').toLowerCase().includes('perkhidmatan'))
+    .reduce((acc, r) => acc + (r.amount || 0), 0);
+
+  // --- CHART DATA ---
+  
+  // 1. Pie Chart (Category Distribution)
+  const categoryData = [
+    { name: 'Works (Kerja)', value: worksSpend, color: '#ffadad' }, // Danger/Reddish for Works (often high value)
+    { name: 'Supplies (Bekalan)', value: suppliesSpend, color: '#36d399' }, // Success/Green
+    { name: 'Services (Perkhidmatan)', value: servicesSpend, color: '#8da2ce' }, // Muted/Blue
+  ].filter(d => d.value > 0);
+
+  // 2. Bar Chart (Top Ministries)
   const ministryTotals = records.reduce((acc: { [key: string]: number }, curr) => {
     if (!curr.ministry) return acc;
-    let shortName = curr.ministry.split('(')[1]?.replace(')', '') || curr.ministry.substring(0, 10);
-    const currentTotal = acc[shortName] || 0;
-    acc[shortName] = currentTotal + (curr.amount || 0);
+    // Clean name for chart: Remove "KEMENTERIAN" to save space
+    let shortName = curr.ministry
+        .replace('KEMENTERIAN', '')
+        .replace('JABATAN', '')
+        .trim();
+    if (shortName.length > 20) shortName = shortName.substring(0, 18) + '...';
+    
+    acc[shortName] = (acc[shortName] || 0) + (curr.amount || 0);
     return acc;
-  }, {} as { [key: string]: number });
+  }, {});
 
-  const chartData = Object.entries(ministryTotals)
+  const barChartData = Object.entries(ministryTotals)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 10); 
+    .slice(0, 8); // Top 8 only
+
+  // --- TABLE FILTERING ---
+  const filteredRecords = useMemo(() => {
+    return records.filter(r => {
+      const ministry = (r.ministry || '').toLowerCase();
+      const vendor = (r.vendor || '').toLowerCase();
+      const search = searchTerm.toLowerCase();
+      const matchesSearch = ministry.includes(search) || vendor.includes(search);
+      
+      const matchesCategory = filterCategory === 'All' || (r.category || '').includes(filterCategory);
+
+      return matchesSearch && matchesCategory;
+    }).sort((a,b) => {
+      if (sortBy === 'value') return b.amount - a.amount;
+      // Default date sort
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+  }, [records, searchTerm, filterCategory, sortBy]);
 
   return (
     <div className="space-y-8 animate-fadeIn pb-12">
+      
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard label="Total Tracked Value" value={formatMoney(totalSpend)} />
-        <StatCard label="Direct Negotiation" value={formatMoney(directSpend)} isAlert />
-        <StatCard 
-          label="Risk Share" 
-          value={
-            <div className="flex items-center gap-2">
-              {share.toFixed(1)}%
-              <span className="text-xs font-normal text-gw-muted bg-gw-bg px-2 py-1 rounded-full border border-gw-border">
-                of total spend
-              </span>
-            </div>
-          } 
-        />
+        <StatCard label="Total Contract Value" value={formatMoney(totalSpend)} />
+        <StatCard label="Works & Construction" value={formatMoney(worksSpend)} isAlert />
+        <StatCard label="Supplies & Services" value={formatMoney(suppliesSpend + servicesSpend)} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* All Records Table */}
-        <div className="lg:col-span-2 bg-gw-card border border-gw-border rounded-lg overflow-hidden flex flex-col max-h-[800px]">
-          <div className="p-6 border-b border-gw-border flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex flex-col">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Procurement Records
-                </h2>
-                <span className="text-xs text-gw-success flex items-center gap-1 mt-1">
-                    <RefreshCw className="w-3 h-3" /> Live Data
-                </span>
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[400px]">
+         {/* Bar Chart (Horizontal) */}
+         <div className="lg:col-span-2 bg-gw-card border border-gw-border rounded-lg p-6 flex flex-col">
+            <h3 className="text-lg font-bold mb-4 text-white">Top Spending Ministries</h3>
+            <div className="flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={barChartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <XAxis type="number" hide />
+                        <YAxis 
+                            dataKey="name" 
+                            type="category" 
+                            width={150} 
+                            tick={{ fill: '#e5e7ef', fontSize: 11 }}
+                            interval={0}
+                        />
+                        <Tooltip cursor={{fill: '#223055'}} content={<CustomTooltip />} />
+                        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                            {barChartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={index === 0 ? '#ffadad' : '#36d399'} />
+                            ))}
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
             </div>
-            <div className="relative">
+         </div>
+
+         {/* Pie Chart */}
+         <div className="bg-gw-card border border-gw-border rounded-lg p-6 flex flex-col">
+            <h3 className="text-lg font-bold mb-4 text-white">Category Breakdown</h3>
+            <div className="flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                        <Pie
+                            data={categoryData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                        >
+                            {categoryData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                            ))}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                    </PieChart>
+                </ResponsiveContainer>
+            </div>
+         </div>
+      </div>
+
+      {/* Table Section */}
+      <div className="bg-gw-card border border-gw-border rounded-lg overflow-hidden flex flex-col">
+          {/* Table Controls */}
+          <div className="p-4 border-b border-gw-border flex flex-col md:flex-row justify-between items-center gap-4 bg-gw-bg/30">
+            <div className="flex items-center gap-2 w-full md:w-auto">
+                 <h2 className="text-lg font-bold text-white flex items-center gap-2 mr-4">
+                    <FileText className="w-5 h-5" /> Recent Awards
+                 </h2>
+                 {/* Sort Dropdown */}
+                 <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1">
+                    <ArrowUpDown className="w-4 h-4 text-gw-muted mr-2" />
+                    <select 
+                        value={sortBy} 
+                        onChange={(e) => setSortBy(e.target.value as any)}
+                        className="bg-transparent text-sm text-gw-text focus:outline-none"
+                    >
+                        <option value="date">Newest First</option>
+                        <option value="value">Highest Value</option>
+                    </select>
+                 </div>
+                 {/* Filter Dropdown */}
+                 <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1 ml-2">
+                    <Filter className="w-4 h-4 text-gw-muted mr-2" />
+                    <select 
+                        value={filterCategory} 
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className="bg-transparent text-sm text-gw-text focus:outline-none"
+                    >
+                        <option value="All">All Categories</option>
+                        <option value="Kerja">Works (Kerja)</option>
+                        <option value="Bekalan">Supplies (Bekalan)</option>
+                        <option value="Perkhidmatan">Services (Perkhidmatan)</option>
+                    </select>
+                 </div>
+            </div>
+
+            <div className="relative w-full md:w-64">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gw-muted" />
                 <input 
                     type="text" 
-                    placeholder="Search ministry or vendor..." 
-                    className="bg-gw-bg border border-gw-border text-sm rounded-full pl-10 pr-4 py-2 text-gw-text focus:outline-none focus:border-gw-success w-64"
+                    placeholder="Search records..." 
+                    className="w-full bg-gw-bg border border-gw-border text-sm rounded-full pl-10 pr-4 py-2 text-gw-text focus:outline-none focus:border-gw-success"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
           </div>
-          <div className="overflow-auto flex-1 custom-scrollbar">
-            <table className="w-full text-left text-sm relative">
-              <thead className="bg-gw-bg/95 sticky top-0 z-10 backdrop-blur">
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gw-bg/95">
                 <tr>
-                  <th className="px-6 py-4 font-medium text-gw-muted uppercase text-xs tracking-wider">Date</th>
-                  <th className="px-6 py-4 font-medium text-gw-muted uppercase text-xs tracking-wider">Ministry</th>
-                  <th className="px-6 py-4 font-medium text-gw-muted uppercase text-xs tracking-wider">Vendor</th>
-                  <th className="px-6 py-4 font-medium text-gw-muted uppercase text-xs tracking-wider text-right">Value</th>
-                  <th className="px-6 py-4 font-medium text-gw-muted uppercase text-xs tracking-wider text-right">Method</th>
+                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">Date</th>
+                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">Ministry</th>
+                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">Vendor</th>
+                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right">Value</th>
+                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right">Category</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gw-border">
-                {filteredRecords.map((r) => (
-                  <tr key={r.id} className="hover:bg-gw-bg/30 transition-colors group">
+                {filteredRecords.slice(0, 50).map((r) => (
+                  <tr key={r.id} className="hover:bg-gw-bg/50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap text-gw-muted font-mono text-xs">{r.date}</td>
                     <td className="px-6 py-4">
                       <button 
                         onClick={() => onMinistryClick(r.ministry)}
-                        className="text-gw-text hover:text-gw-success font-medium flex items-center gap-1 transition-colors text-left"
+                        className="text-white hover:text-gw-success font-medium flex items-center gap-1 transition-colors text-left"
                       >
-                        <span className="line-clamp-1" title={r.ministry}>{r.ministry}</span>
+                        <span className="line-clamp-1 max-w-[200px]" title={r.ministry}>{r.ministry}</span>
                         <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                       </button>
                     </td>
-                    <td className="px-6 py-4 text-gw-muted truncate max-w-[150px]" title={r.vendor}>{r.vendor}</td>
-                    <td className="px-6 py-4 text-right font-medium text-gw-text font-mono">{formatMoney(r.amount)}</td>
+                    <td className="px-6 py-4 text-gw-muted truncate max-w-[200px]" title={r.vendor}>{r.vendor}</td>
+                    <td className="px-6 py-4 text-right font-bold text-gw-text font-mono">{formatMoney(r.amount)}</td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        (r.method || '').toLowerCase().includes('direct')
+                        (r.category || '').toLowerCase().includes('kerja')
                           ? 'bg-gw-danger/10 text-gw-danger border border-gw-danger/20'
                           : 'bg-gw-success/10 text-gw-success border border-gw-success/20'
                       }`}>
-                        {r.method === "Direct Negotiation" ? "Direct Neg." : "Open Tender"}
+                        {r.category || 'General'}
                       </span>
                     </td>
                   </tr>
                 ))}
+                {filteredRecords.length === 0 && (
+                    <tr>
+                        <td colSpan={5} className="text-center py-8 text-gw-muted italic">No records found matching your filters.</td>
+                    </tr>
+                )}
               </tbody>
             </table>
           </div>
-        </div>
-
-        {/* Mini Chart */}
-        <div className="bg-gw-card border border-gw-border rounded-lg p-6 flex flex-col">
-          <h3 className="text-lg font-bold mb-6 text-white">Top 10 Spenders</h3>
-          <div className="flex-1 min-h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 40 }}>
-                <XAxis type="number" hide />
-                <YAxis 
-                  dataKey="name" 
-                  type="category" 
-                  width={60} 
-                  tick={{ fill: '#8da2ce', fontSize: 10 }}
-                  interval={0}
-                />
-                <Tooltip cursor={{fill: '#223055'}} content={<CustomTooltip />} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={index < 3 ? '#ffadad' : '#36d399'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="p-4 border-t border-gw-border bg-gw-bg/30 text-center text-xs text-gw-muted">
+            Showing top {Math.min(filteredRecords.length, 50)} recent results
           </div>
-        </div>
       </div>
     </div>
   );

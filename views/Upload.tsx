@@ -43,7 +43,8 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
       ministry: getText(1) || "Unknown Ministry",
       vendor: getText(2) || "Unknown Vendor",
       amount: parseAmount(getText(3)), 
-      method: getText(4) || "Open Tender",
+      category: getText(4) || "General", // Use Column 4 as Category
+      method: "Open Tender",
       reason: null
     };
 
@@ -145,7 +146,8 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
              if (!date || date === 'TIADA MAKLUMAT') date = new Date().toISOString().split('T')[0];
              if (date && typeof date === 'string' && date.includes(' ')) date = date.split(' ')[0];
 
-             const method = item.method || item['__EMPTY_2'] || "Open Tender";
+             const category = item.category || item['__EMPTY_2'] || "General";
+             const method = item.method || "Open Tender";
 
              if (ministry !== "Unknown Ministry" || amount > 0) {
                  cleanData.push({
@@ -154,6 +156,7 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
                      vendor: String(vendor).trim(),
                      amount: amount || 0,
                      method: String(method).trim(),
+                     category: String(category).trim(),
                      date: String(date).trim(),
                      reason: item.reason || null
                  });
