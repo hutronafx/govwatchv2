@@ -16,12 +16,65 @@ function App() {
     try {
       const response = await fetch('/data.json');
       if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setRecords(data);
+        const rawData = await response.json();
+        
+        // NORMALIZE DATA
+        // Handles both clean scraper data and raw Excel/JSON exports with "__EMPTY" keys
+        const cleanData: Record[] = [];
+        if (Array.isArray(rawData)) {
+             rawData.forEach((item: any, index: number) => {
+                // 1. Skip Header Rows (SheetJS/Excel artifacts)
+                if (item['__EMPTY'] === 'TAJUK SEBUT HARGA' || item['__EMPTY_3'] === 'KEMENTERIAN') return;
+
+                // 2. Map fields
+                // Check if it's already a valid Record (from scraper) or a raw sheet row
+                const ministry = item.ministry || item['__EMPTY_3'] || "Unknown Ministry";
+                const vendor = item.vendor || item['__EMPTY_4'] || "Unknown Vendor";
+                
+                // Parse Amount (Handle "RM 4,000.00" or raw numbers)
+                let amount = 0;
+                if (typeof item.amount === 'number') amount = item.amount;
+                else if (item['__EMPTY_8']) {
+                    amount = parseFloat(String(item['__EMPTY_8']).replace(/[^0-9.-]+/g, ""));
+                } else if (typeof item.amount === 'string') {
+                    amount = parseFloat(item.amount.replace(/[^0-9.-]+/g, ""));
+                }
+
+                // Parse Date
+                // Use decision date (__EMPTY_6) or acceptance date (__EMPTY_7)
+                let date = item.date || item['__EMPTY_6'];
+                if (!date || date === 'TIADA MAKLUMAT') date = item['__EMPTY_7'];
+                if (!date || date === 'TIADA MAKLUMAT') date = new Date().toISOString().split('T')[0];
+                
+                // Clean date if it has time "2025-12-11 04:45:01" -> "2025-12-11"
+                if (date && typeof date === 'string' && date.includes(' ')) {
+                    date = date.split(' ')[0];
+                }
+
+                // Map Category/Method
+                const method = item.method || item['__EMPTY_2'] || "Open Tender";
+
+                // Only add if it looks like a real record
+                if (ministry !== "Unknown Ministry" || amount > 0) {
+                    cleanData.push({
+                        id: index + 1,
+                        ministry: String(ministry).trim(),
+                        vendor: String(vendor).trim(),
+                        amount: amount || 0,
+                        method: String(method).trim(),
+                        date: String(date).trim(),
+                        reason: item.reason || null
+                    });
+                }
+             });
+        }
+
+        if (cleanData.length > 0) {
+          setRecords(cleanData);
+        } else {
+            console.warn('Data loaded but no valid records found after normalization.');
         }
       } else {
-        // File doesn't exist yet (first run), just use empty state
         console.log('No existing data found, starting with empty database.');
       }
     } catch (error) {
@@ -35,17 +88,13 @@ function App() {
     fetchData();
 
     // SECRET ROUTE LISTENER
-    // Checks the URL hash to see if the user is trying to access the admin panel
     const checkHash = () => {
       if (window.location.hash === '#secret-admin-panel') {
         setViewConfig({ view: 'upload' });
       }
     };
 
-    // Check on load
     checkHash();
-
-    // Check on hash change (if user types it in after loading)
     window.addEventListener('hashchange', checkHash);
     return () => window.removeEventListener('hashchange', checkHash);
   }, []);
@@ -53,7 +102,6 @@ function App() {
   const handleNavigate = (view: 'dashboard' | 'upload') => {
     setViewConfig({ view });
     window.scrollTo(0, 0);
-    // Clear hash if leaving upload
     if (view === 'dashboard' && window.location.hash === '#secret-admin-panel') {
         history.pushState("", document.title, window.location.pathname + window.location.search);
     }
@@ -65,7 +113,6 @@ function App() {
   };
 
   const handleDataLoaded = (newRecords: Record[]) => {
-    // When upload finishes, update state and go to dashboard
     setRecords(newRecords);
     handleNavigate('dashboard');
   };

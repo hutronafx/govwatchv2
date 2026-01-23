@@ -51,26 +51,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
     );
   }
   
-  const filteredRecords = records.filter(r => 
-    r.ministry.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.vendor.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a,b) => {
+  // Safe filtering that won't crash on undefined values
+  const filteredRecords = records.filter(r => {
+    const ministry = (r.ministry || '').toLowerCase();
+    const vendor = (r.vendor || '').toLowerCase();
+    const search = searchTerm.toLowerCase();
+    return ministry.includes(search) || vendor.includes(search);
+  }).sort((a,b) => {
     const timeA = new Date(a.date).getTime();
     const timeB = new Date(b.date).getTime();
     return timeB - timeA;
   });
 
-  const totalSpend = records.reduce((acc, r) => acc + r.amount, 0);
+  const totalSpend = records.reduce((acc, r) => acc + (r.amount || 0), 0);
   const directSpend = records
-    .filter(r => r.method.toLowerCase().includes('direct'))
-    .reduce((acc, r) => acc + r.amount, 0);
+    .filter(r => (r.method || '').toLowerCase().includes('direct'))
+    .reduce((acc, r) => acc + (r.amount || 0), 0);
   const share = totalSpend ? (directSpend / totalSpend * 100) : 0;
 
   // Aggregate data for chart
   const ministryTotals = records.reduce((acc: { [key: string]: number }, curr) => {
+    if (!curr.ministry) return acc;
     let shortName = curr.ministry.split('(')[1]?.replace(')', '') || curr.ministry.substring(0, 10);
     const currentTotal = acc[shortName] || 0;
-    acc[shortName] = currentTotal + curr.amount;
+    acc[shortName] = currentTotal + (curr.amount || 0);
     return acc;
   }, {} as { [key: string]: number });
 
@@ -150,7 +154,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                     <td className="px-6 py-4 text-right font-medium text-gw-text font-mono">{formatMoney(r.amount)}</td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        r.method.toLowerCase().includes('direct')
+                        (r.method || '').toLowerCase().includes('direct')
                           ? 'bg-gw-danger/10 text-gw-danger border border-gw-danger/20'
                           : 'bg-gw-success/10 text-gw-success border border-gw-success/20'
                       }`}>

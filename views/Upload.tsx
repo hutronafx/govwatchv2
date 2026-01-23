@@ -116,22 +116,60 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
     reader.onload = async (e) => {
       try {
         const text = e.target?.result as string;
-        const data = JSON.parse(text);
+        const rawData = JSON.parse(text);
 
-        if (!Array.isArray(data)) {
+        if (!Array.isArray(rawData)) {
           throw new Error("File content is not an array");
         }
+
+        // NORMALIZE BEFORE SAVING
+        const cleanData: Record[] = [];
+        rawData.forEach((item: any, index: number) => {
+             // Skip Header Rows 
+             if (item['__EMPTY'] === 'TAJUK SEBUT HARGA' || item['__EMPTY_3'] === 'KEMENTERIAN') return;
+
+             // Map fields
+             const ministry = item.ministry || item['__EMPTY_3'] || "Unknown Ministry";
+             const vendor = item.vendor || item['__EMPTY_4'] || "Unknown Vendor";
+             
+             let amount = 0;
+             if (typeof item.amount === 'number') amount = item.amount;
+             else if (item['__EMPTY_8']) {
+                 amount = parseFloat(String(item['__EMPTY_8']).replace(/[^0-9.-]+/g, ""));
+             } else if (typeof item.amount === 'string') {
+                 amount = parseFloat(item.amount.replace(/[^0-9.-]+/g, ""));
+             }
+
+             let date = item.date || item['__EMPTY_6'];
+             if (!date || date === 'TIADA MAKLUMAT') date = item['__EMPTY_7'];
+             if (!date || date === 'TIADA MAKLUMAT') date = new Date().toISOString().split('T')[0];
+             if (date && typeof date === 'string' && date.includes(' ')) date = date.split(' ')[0];
+
+             const method = item.method || item['__EMPTY_2'] || "Open Tender";
+
+             if (ministry !== "Unknown Ministry" || amount > 0) {
+                 cleanData.push({
+                     id: index + 1,
+                     ministry: String(ministry).trim(),
+                     vendor: String(vendor).trim(),
+                     amount: amount || 0,
+                     method: String(method).trim(),
+                     date: String(date).trim(),
+                     reason: item.reason || null
+                 });
+             }
+        });
 
         const response = await fetch('/api/update-data', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: JSON.stringify(cleanData)
         });
 
         if (!response.ok) throw new Error('Server failed to save data');
 
         setStatus('success');
-        setTimeout(() => { onDataLoaded(data as Record[]); }, 1500);
+        setTimeout(() => { onDataLoaded(cleanData); }, 1500);
         
       } catch (err) {
         setStatus('error');
