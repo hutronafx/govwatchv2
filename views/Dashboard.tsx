@@ -117,8 +117,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
     }).sort((a,b) => {
       // Fix: Ensure numeric arithmetic for sorting
       if (sortBy === 'value') return (b.amount || 0) - (a.amount || 0);
-      // Default date sort
-      return (new Date(b.date).getTime() || 0) - (new Date(a.date).getTime() || 0);
+      
+      // Default date sort (Handle invalid dates gracefully)
+      const dateA = new Date(a.date).getTime() || 0;
+      const dateB = new Date(b.date).getTime() || 0;
+      return dateB - dateA;
     });
   }, [records, searchTerm, filterCategory, sortBy]);
 
