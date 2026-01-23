@@ -22,7 +22,7 @@ export const VendorList: React.FC<VendorListProps> = ({ records }) => {
     return acc;
   }, {} as Record<string, { count: number; value: number; ministries: Set<string> }>);
 
-  const sortedVendors = Object.entries(vendorStats)
+  const sortedVendors = (Object.entries(vendorStats) as [string, typeof vendorStats[string]][])
     .map(([name, stats]) => ({ 
         name, 
         count: stats.count, 

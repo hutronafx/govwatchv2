@@ -13,6 +13,8 @@
 (function() {
   const rows = document.querySelectorAll('table tbody tr');
   const data = [];
+  const currentUrl = window.location.href;
+  const now = new Date().toISOString();
   
   // Helper to clean currency strings (e.g., "RM 1,234.50" -> 1234.50)
   const parseAmount = (str) => {
@@ -38,7 +40,9 @@
       vendor: cols[2]?.innerText?.trim() || "Unknown Vendor",
       amount: parseAmount(cols[3]?.innerText), 
       method: cols[4]?.innerText?.trim() || "Open Tender", // Default if missing
-      reason: null
+      reason: null,
+      sourceUrl: currentUrl,
+      crawledAt: now
     };
 
     data.push(record);

@@ -67,13 +67,14 @@ async function scrape() {
     let hasNextPage = true;
     let pageNum = 1;
     const MAX_PAGES = 5; // Safety limit to prevent timeouts during this demo
+    const crawlTime = new Date().toISOString();
 
     while (hasNextPage && pageNum <= MAX_PAGES) {
         console.log(`Scraping page ${pageNum}...`);
         
         // 5. Data Extraction
         // Using textContent is often faster/safer than innerText in headless
-        const pageData = await page.evaluate(() => {
+        const pageData = await page.evaluate((targetUrl, time) => {
             const rows = Array.from(document.querySelectorAll('table tbody tr'));
             const results = [];
             
@@ -104,10 +105,12 @@ async function scrape() {
                     vendor: vendorStr || "Unknown",
                     amount: parseAmount(amountStr),
                     method: methodStr || "Unknown",
+                    sourceUrl: targetUrl,
+                    crawledAt: time
                 });
             });
             return results;
-        });
+        }, TARGET_URL, crawlTime);
 
         if (pageData.length > 0) {
             allRecords = [...allRecords, ...pageData];

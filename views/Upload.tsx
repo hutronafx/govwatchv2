@@ -22,6 +22,8 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
   const SCRAPER_SCRIPT = `(function() {
   const rows = document.querySelectorAll('table tbody tr');
   const data = [];
+  const currentUrl = window.location.href;
+  const now = new Date().toISOString();
   
   const parseAmount = (str) => {
     if (!str) return 0;
@@ -45,7 +47,9 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
       amount: parseAmount(getText(3)), 
       category: getText(4) || "General", // Use Column 4 as Category
       method: "Open Tender",
-      reason: null
+      reason: null,
+      sourceUrl: currentUrl,
+      crawledAt: now
     };
 
     data.push(record);
@@ -125,6 +129,8 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
 
         // NORMALIZE BEFORE SAVING
         const cleanData: Record[] = [];
+        const now = new Date().toISOString();
+        
         rawData.forEach((item: any, index: number) => {
              // Skip Header Rows 
              if (item['__EMPTY'] === 'TAJUK SEBUT HARGA' || item['__EMPTY_3'] === 'KEMENTERIAN') return;
@@ -158,7 +164,9 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
                      method: String(method).trim(),
                      category: String(category).trim(),
                      date: String(date).trim(),
-                     reason: item.reason || null
+                     reason: item.reason || null,
+                     sourceUrl: item.sourceUrl || null,
+                     crawledAt: item.crawledAt || now
                  });
              }
         });

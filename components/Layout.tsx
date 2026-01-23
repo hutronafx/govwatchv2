@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, LayoutDashboard, Building2, Store } from 'lucide-react';
+import { Eye, LayoutDashboard, Building2, Store, Info } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -26,27 +26,35 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeView, onNavigate
               </div>
               <span className="font-bold text-xl tracking-tight text-white">GovWatch <span className="text-gw-muted font-normal">MY</span></span>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex space-x-1 md:space-x-2">
               <button
                 onClick={() => onNavigate('dashboard')}
                 className={navItemClass(activeView === 'dashboard')}
               >
                 <LayoutDashboard className="w-4 h-4 mr-2" />
-                Dashboard
+                <span className="hidden md:inline">Dashboard</span>
               </button>
               <button
                 onClick={() => onNavigate('ministry_list')}
                 className={navItemClass(activeView.includes('ministry'))}
               >
                 <Building2 className="w-4 h-4 mr-2" />
-                Ministries
+                <span className="hidden md:inline">Ministries</span>
               </button>
               <button
                 onClick={() => onNavigate('vendor_list')}
                 className={navItemClass(activeView === 'vendor_list')}
               >
                 <Store className="w-4 h-4 mr-2" />
-                Vendors
+                <span className="hidden md:inline">Vendors</span>
+              </button>
+              <div className="w-px h-6 bg-gw-border mx-2"></div>
+              <button
+                onClick={() => onNavigate('about')}
+                className={navItemClass(activeView === 'about')}
+              >
+                <Info className="w-4 h-4 mr-2" />
+                <span className="hidden md:inline">About</span>
               </button>
             </div>
           </div>

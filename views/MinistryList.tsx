@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Record as ProcurementRecord } from '../types';
-import { formatMoney } from '../utils';
+import { formatMoney, translateMinistry } from '../utils';
 import { Building2, ChevronRight, Search } from 'lucide-react';
 
 interface MinistryListProps {
@@ -22,10 +22,17 @@ export const MinistryList: React.FC<MinistryListProps> = ({ records, onSelectMin
     return acc;
   }, {} as Record<string, { count: number; value: number }>);
 
-  const sortedMinistries = Object.entries(ministryStats)
-    .map(([name, stats]) => ({ name, ...stats }))
+  const sortedMinistries = (Object.entries(ministryStats) as [string, typeof ministryStats[string]][])
+    .map(([name, stats]) => ({ 
+        name, // The raw malay name (for ID)
+        englishName: translateMinistry(name), // For display
+        ...stats 
+    }))
     .sort((a, b) => b.value - a.value)
-    .filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    .filter(m => 
+        m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        m.englishName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   return (
     <div className="animate-fadeIn space-y-6">
@@ -57,7 +64,11 @@ export const MinistryList: React.FC<MinistryListProps> = ({ records, onSelectMin
             className="bg-gw-card border border-gw-border rounded-lg p-5 hover:border-gw-success/50 hover:bg-gw-card/80 transition-all cursor-pointer group flex flex-col justify-between"
           >
             <div>
-              <h3 className="font-bold text-white line-clamp-2 mb-2 group-hover:text-gw-success transition-colors">{m.name}</h3>
+              <h3 className="font-bold text-white line-clamp-2 mb-1 group-hover:text-gw-success transition-colors">
+                {m.englishName}
+              </h3>
+              <p className="text-xs text-gw-muted/70 uppercase tracking-wider mb-2 line-clamp-1">{m.name}</p>
+              
               <div className="flex items-center gap-2 text-xs text-gw-muted">
                  <span className="px-2 py-1 bg-gw-bg rounded border border-gw-border">{m.count} Contracts</span>
               </div>

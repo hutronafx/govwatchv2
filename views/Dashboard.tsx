@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Record as ProcurementRecord } from '../types';
 import { StatCard } from '../components/StatCard';
-import { formatMoney } from '../utils';
-import { ArrowUpRight, Search, FileText, RefreshCw, Filter, ArrowUpDown } from 'lucide-react';
+import { formatMoney, translateMinistry, downloadCSV } from '../utils';
+import { ArrowUpRight, Search, FileText, RefreshCw, Filter, ArrowUpDown, Download, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 
 interface DashboardProps {
@@ -68,31 +68,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   const servicesSpend = records
     .filter(r => (r.category || '').toLowerCase().includes('perkhidmatan'))
     .reduce((acc, r) => acc + (r.amount || 0), 0);
+  
+  // Last Updated Logic (Recent Crawl)
+  const lastCrawlDate = records
+    .map(r => r.crawledAt || '')
+    .filter(d => d)
+    .sort()
+    .pop();
 
   // --- CHART DATA ---
   
   // 1. Pie Chart (Category Distribution)
   const categoryData = [
-    { name: 'Works (Kerja)', value: worksSpend, color: '#ffadad' }, // Danger/Reddish for Works (often high value)
-    { name: 'Supplies (Bekalan)', value: suppliesSpend, color: '#36d399' }, // Success/Green
-    { name: 'Services (Perkhidmatan)', value: servicesSpend, color: '#8da2ce' }, // Muted/Blue
+    { name: 'Works (Kerja)', value: worksSpend, color: '#ffadad' }, 
+    { name: 'Supplies (Bekalan)', value: suppliesSpend, color: '#36d399' }, 
+    { name: 'Services (Perkhidmatan)', value: servicesSpend, color: '#8da2ce' }, 
   ].filter(d => d.value > 0);
 
   // 2. Bar Chart (Top Ministries)
   const ministryTotals = records.reduce((acc: { [key: string]: number }, curr) => {
     if (!curr.ministry) return acc;
-    // Clean name for chart: Remove "KEMENTERIAN" to save space
-    let shortName = curr.ministry
-        .replace('KEMENTERIAN', '')
-        .replace('JABATAN', '')
-        .trim();
-    if (shortName.length > 20) shortName = shortName.substring(0, 18) + '...';
-    
-    acc[shortName] = (acc[shortName] || 0) + (curr.amount || 0);
+    // Translate the key for the chart
+    const englishName = translateMinistry(curr.ministry);
+    const currentVal = acc[englishName] || 0;
+    acc[englishName] = currentVal + (curr.amount || 0);
     return acc;
   }, {});
 
-  const barChartData = Object.entries(ministryTotals)
+  const barChartData = (Object.entries(ministryTotals) as [string, number][])
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 8); // Top 8 only
@@ -100,24 +103,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   // --- TABLE FILTERING ---
   const filteredRecords = useMemo(() => {
     return records.filter(r => {
-      const ministry = (r.ministry || '').toLowerCase();
+      const ministryRaw = (r.ministry || '').toLowerCase();
+      const ministryEn = translateMinistry(r.ministry).toLowerCase();
       const vendor = (r.vendor || '').toLowerCase();
       const search = searchTerm.toLowerCase();
-      const matchesSearch = ministry.includes(search) || vendor.includes(search);
+      
+      // Search matches either raw Malay name, Translated English name, or Vendor
+      const matchesSearch = ministryRaw.includes(search) || ministryEn.includes(search) || vendor.includes(search);
       
       const matchesCategory = filterCategory === 'All' || (r.category || '').includes(filterCategory);
 
       return matchesSearch && matchesCategory;
     }).sort((a,b) => {
-      if (sortBy === 'value') return b.amount - a.amount;
+      // Fix: Ensure numeric arithmetic for sorting
+      if (sortBy === 'value') return (b.amount || 0) - (a.amount || 0);
       // Default date sort
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
+      return (new Date(b.date).getTime() || 0) - (new Date(a.date).getTime() || 0);
     });
   }, [records, searchTerm, filterCategory, sortBy]);
+
+  const handleExport = () => {
+    downloadCSV(filteredRecords, `govwatch_export_${new Date().toISOString().split('T')[0]}.csv`);
+  };
 
   return (
     <div className="space-y-8 animate-fadeIn pb-12">
       
+      {/* Header with Last Updated */}
+      <div className="flex justify-end">
+        {lastCrawlDate && (
+             <div className="flex items-center gap-2 text-xs text-gw-muted bg-gw-card px-3 py-1 rounded-full border border-gw-border">
+                <Clock className="w-3 h-3" />
+                Data Last Updated: {new Date(lastCrawlDate).toLocaleDateString()}
+             </div>
+        )}
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard label="Total Contract Value" value={formatMoney(totalSpend)} />
@@ -137,8 +158,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                         <YAxis 
                             dataKey="name" 
                             type="category" 
-                            width={150} 
-                            tick={{ fill: '#e5e7ef', fontSize: 11 }}
+                            width={180} 
+                            tick={{ fill: '#e5e7ef', fontSize: 10, width: 170 }}
                             interval={0}
                         />
                         <Tooltip cursor={{fill: '#223055'}} content={<CustomTooltip />} />
@@ -215,15 +236,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                  </div>
             </div>
 
-            <div className="relative w-full md:w-64">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gw-muted" />
-                <input 
-                    type="text" 
-                    placeholder="Search records..." 
-                    className="w-full bg-gw-bg border border-gw-border text-sm rounded-full pl-10 pr-4 py-2 text-gw-text focus:outline-none focus:border-gw-success"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+            <div className="flex items-center gap-2 w-full md:w-auto">
+                <div className="relative w-full md:w-64">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gw-muted" />
+                    <input 
+                        type="text" 
+                        placeholder="Search records..." 
+                        className="w-full bg-gw-bg border border-gw-border text-sm rounded-full pl-10 pr-4 py-2 text-gw-text focus:outline-none focus:border-gw-success"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                
+                <button 
+                  onClick={handleExport}
+                  title="Download CSV"
+                  className="p-2 bg-gw-bg border border-gw-border rounded-full text-gw-success hover:bg-gw-success/10 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
             </div>
           </div>
 
@@ -245,10 +276,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                     <td className="px-6 py-4">
                       <button 
                         onClick={() => onMinistryClick(r.ministry)}
-                        className="text-white hover:text-gw-success font-medium flex items-center gap-1 transition-colors text-left"
+                        className="text-white hover:text-gw-success font-medium flex flex-col items-start transition-colors text-left"
                       >
-                        <span className="line-clamp-1 max-w-[200px]" title={r.ministry}>{r.ministry}</span>
-                        <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                        <span className="line-clamp-1 max-w-[250px] font-bold" title={r.ministry}>
+                            {translateMinistry(r.ministry)}
+                        </span>
+                        <span className="text-[10px] text-gw-muted flex items-center gap-1">
+                            {r.ministry} 
+                            <ArrowUpRight className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </span>
                       </button>
                     </td>
                     <td className="px-6 py-4 text-gw-muted truncate max-w-[200px]" title={r.vendor}>{r.vendor}</td>

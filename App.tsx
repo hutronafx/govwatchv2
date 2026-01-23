@@ -5,6 +5,7 @@ import { MinistryDetail } from './views/MinistryDetail';
 import { MinistryList } from './views/MinistryList';
 import { VendorList } from './views/VendorList';
 import { Upload } from './views/Upload';
+import { About } from './views/About';
 import { INITIAL_RECORDS } from './data';
 import { ViewConfig, Record } from './types';
 
@@ -49,11 +50,7 @@ function App() {
                 }
 
                 // Map Category & Method
-                // Important: __EMPTY_2 is often "KATEGORI PEROLEHAN" (Bekalan, Kerja, Perkhidmatan)
-                // We map this to 'category'.
                 const category = item.category || item['__EMPTY_2'] || "General";
-                
-                // Raw data doesn't explicitly have "Direct Negotiation" column usually, so we default method.
                 const method = item.method || "Open Tender";
 
                 if (ministry !== "Unknown Ministry" || amount > 0) {
@@ -145,6 +142,10 @@ function App() {
 
       {viewConfig.view === 'upload' && (
         <Upload onDataLoaded={handleDataLoaded} />
+      )}
+      
+      {viewConfig.view === 'about' && (
+        <About />
       )}
     </Layout>
   );
