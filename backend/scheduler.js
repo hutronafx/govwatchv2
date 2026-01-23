@@ -9,101 +9,74 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware to parse JSON bodies (for file uploads) - Increased limit for large data files
 app.use(express.json({ limit: '50mb' }));
 
-// Middleware to log requests
 app.use((req, res, next) => {
-  if (req.url.endsWith('.js') || req.url.endsWith('.css')) {
-    // skip noisy static file logs
-  } else {
+  if (!req.url.endsWith('.js') && !req.url.endsWith('.css')) {
     console.log(`[Request] ${req.method} ${req.url}`);
   }
   next();
 });
 
-console.log('GovWatch Server: Hybrid Mode Active (Manual + Auto-Scraper)');
+console.log('GovWatch Server: Hybrid Mode Active');
 
-// 2. Serve Static Files
+// Static
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.static(path.join(__dirname, '../dist')));
 
-// 3. API: Save Data Endpoint (Manual Upload)
+// API: Manual Update
 app.post('/api/update-data', (req, res) => {
   const newData = req.body;
-  
-  if (!Array.isArray(newData)) {
-    return res.status(400).json({ error: 'Invalid data format. Expected an array.' });
-  }
+  if (!Array.isArray(newData)) return res.status(400).json({ error: 'Invalid data' });
 
-  const publicDir = path.join(__dirname, '../public');
-  const dataFile = path.join(publicDir, 'data.json');
-
+  const dataFile = path.join(__dirname, '../public/data.json');
   try {
     fs.writeFileSync(dataFile, JSON.stringify(newData, null, 2));
-    console.log(`[Admin] Database manually updated with ${newData.length} records.`);
     res.json({ success: true, count: newData.length });
   } catch (err) {
-    console.error('Error saving data file:', err);
     res.status(500).json({ error: 'Failed to write to disk' });
   }
 });
 
-// 4. API: Trigger Server-Side Scraper (One-Click Update)
+// API: Trigger Scraper (Robust)
 app.post('/api/trigger-scrape', async (req, res) => {
   console.log('[Admin] Triggering server-side scraper...');
   try {
-    // This runs the Puppeteer script on the server
-    await scrape();
+    // IMPORTANT: Await the scrape so we catch errors here, preventing server crash
+    await scrape(); 
     
-    // Read the newly created file to return the count
-    const publicDir = path.join(__dirname, '../public');
-    const dataFile = path.join(publicDir, 'data.json');
-    
+    // Check results
+    const dataFile = path.join(__dirname, '../public/data.json');
+    let count = 0;
     if (fs.existsSync(dataFile)) {
-      const data = JSON.parse(fs.readFileSync(dataFile, 'utf-8'));
-      res.json({ success: true, count: data.length, message: 'Scrape completed successfully.' });
-    } else {
-      res.json({ success: true, count: 0, message: 'Scrape finished but no data file found.' });
+       const data = JSON.parse(fs.readFileSync(dataFile, 'utf-8'));
+       count = data.length;
     }
+    
+    res.json({ success: true, count, message: 'Scrape completed.' });
   } catch (error) {
-    console.error('[Admin] Scraper failed:', error);
-    res.status(500).json({ error: 'Scraper failed to execute. Check server logs.' });
+    console.error('[Admin] Scraper execution failed:', error);
+    // Return 200 with error message so frontend can handle it without generic 500
+    res.json({ success: false, message: 'Scraper failed internally. Check server logs.' });
   }
 });
 
-// Health Check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', uptime: process.uptime() });
-});
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Handle React Routing
 app.get('*', (req, res) => {
-  const indexPath = path.join(__dirname, '../dist/index.html');
-  res.sendFile(indexPath, (err) => {
-    if (err) {
-      console.error("Error serving index.html:", err);
-      res.status(500).send("Server Error: Could not load application.");
-    }
-  });
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
-// Ensure data file exists
-const initDataFile = () => {
-  const publicDir = path.join(__dirname, '../public');
-  const dataFile = path.join(publicDir, 'data.json');
-  
-  if (!fs.existsSync(publicDir)) {
-    fs.mkdirSync(publicDir, { recursive: true });
-  }
-  
-  if (!fs.existsSync(dataFile)) {
-    fs.writeFileSync(dataFile, '[]');
+// Init Data File
+const init = () => {
+  const f = path.join(__dirname, '../public/data.json');
+  if (!fs.existsSync(f)) {
+      fs.mkdirSync(path.dirname(f), { recursive: true });
+      fs.writeFileSync(f, '[]');
   }
 };
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  initDataFile();
-  console.log('System ready.');
+  init();
 });
