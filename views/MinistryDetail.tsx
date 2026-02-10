@@ -1,8 +1,7 @@
 import React from 'react';
 import { Record } from '../types';
 import { formatMoney, translateMinistry } from '../utils';
-import { ArrowLeft, Building2, Calendar, CreditCard, FileWarning, AlertTriangle, PieChart as PieChartIcon, TrendingUp, Link as LinkIcon } from 'lucide-react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { ArrowLeft, Building2, Calendar, CreditCard, FileWarning, AlertTriangle, PieChart as PieChartIcon, Link as LinkIcon } from 'lucide-react';
 
 interface MinistryDetailProps {
   ministryName: string;

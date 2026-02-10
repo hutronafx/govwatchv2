@@ -1,116 +1,155 @@
 import { Record } from './types';
 
-// SIMULATED DATA GENERATOR
-// Used to populate the dashboard for demonstration purposes when no scraped data is available.
-
-const generateMockData = (): Record[] => {
-  const MINISTRIES = [
-    "KEMENTERIAN PENDIDIKAN",
-    "KEMENTERIAN KESIHATAN",
-    "KEMENTERIAN KEWANGAN",
-    "KEMENTERIAN DALAM NEGERI",
-    "KEMENTERIAN PERTAHANAN",
-    "KEMENTERIAN PENGANGKUTAN",
-    "KEMENTERIAN KERJA RAYA",
-    "JABATAN KERJA RAYA",
-    "KEMENTERIAN PERTANIAN DAN KETERJAMINAN MAKANAN",
-    "KEMENTERIAN EKONOMI",
-    "KEMENTERIAN SAINS, TEKNOLOGI DAN INOVASI",
-    "KEMENTERIAN KOMUNIKASI",
-    "KEMENTERIAN SUMBER MANUSIA",
-    "JABATAN PERDANA MENTERI",
-    "KEMENTERIAN PELANCONGAN, SENI DAN BUDAYA",
-    "KEMENTERIAN BELIA DAN SUKAN"
-  ];
-
-  const VENDOR_PREFIXES = ["Syarikat", "Tetuan", "Koperasi", "Pusat", "Agensi", "Perusahaan"];
-  const VENDOR_NAMES = ["Maju", "Jaya", "Gemilang", "Wawasan", "Teknologi", "Bina", "Harmoni", "Mega", "Prima", "Global", "Putra", "Sinaran", "Impian", "Lestari", "Setia", "Puncak"];
-  const VENDOR_SUFFIXES = ["Sdn Bhd", "Enterprise", "Trading", "Construction", "Resources", "PLT", "Solutions", "Services"];
-
-  const CATEGORIES = ["Bekalan", "Perkhidmatan", "Kerja"];
-  const METHODS = ["Tender Terbuka", "Rundingan Terus", "Sebut Harga", "Lantikan Terus"];
-
-  const records: Record[] = [];
-
-  for (let i = 1; i <= 1000; i++) {
-    // Random Ministry
-    const ministry = MINISTRIES[Math.floor(Math.random() * MINISTRIES.length)];
-
-    // Random Vendor
-    const prefix = VENDOR_PREFIXES[Math.floor(Math.random() * VENDOR_PREFIXES.length)];
-    const name1 = VENDOR_NAMES[Math.floor(Math.random() * VENDOR_NAMES.length)];
-    const name2 = VENDOR_NAMES[Math.floor(Math.random() * VENDOR_NAMES.length)];
-    const suffix = VENDOR_SUFFIXES[Math.floor(Math.random() * VENDOR_SUFFIXES.length)];
-    const vendor = `${prefix} ${name1} ${name2} ${suffix}`;
-
-    // Random Amount (Weighted towards smaller amounts, occasional huge ones)
-    // 80% < 500k, 15% < 2m, 5% > 2m
-    let amount = 0;
-    const rand = Math.random();
-    if (rand > 0.95) {
-        amount = Math.floor(Math.random() * 50000000) + 2000000; // 2m - 52m
-    } else if (rand > 0.8) {
-        amount = Math.floor(Math.random() * 1500000) + 500000; // 500k - 2m
-    } else {
-        amount = Math.floor(Math.random() * 480000) + 20000; // 20k - 500k
-    }
-
-    // Random Date (Last 365 days)
-    const dateObj = new Date();
-    dateObj.setDate(dateObj.getDate() - Math.floor(Math.random() * 365));
-    const date = dateObj.toISOString().split('T')[0];
-
-    // Method & Reason
-    const method = METHODS[Math.floor(Math.random() * METHODS.length)];
-    let reason: string | null = null;
-    
-    // Add fake reasons for Direct Negotiations
-    if (method === "Rundingan Terus") {
-        const reasons = [
-            "Kelulusan Khas Perbendaharaan",
-            "Perolehan Darurat / Bencana Alam",
-            "Keserasian (Compatibility) dengan sistem sedia ada",
-            "Satu-satunya sumber (Sole Source)",
-            "Kepentingan Strategik Negara"
-        ];
-        if (Math.random() > 0.3) {
-            reason = reasons[Math.floor(Math.random() * reasons.length)];
-        }
-    }
-
-    // Category logic (some ministries skew towards certain categories)
-    let category = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
-    if (ministry.includes("KERJA RAYA")) category = "Kerja"; // Public Works mostly does Works
-
-    records.push({
-      id: i,
-      ministry,
-      vendor,
-      amount,
-      method,
-      category,
-      date,
-      reason,
-      sourceUrl: "#demo-data",
-      crawledAt: new Date().toISOString()
-    });
+// DATA POLICY: INITIAL RECORDS FOR PREVIEW
+export const INITIAL_RECORDS: Record[] = [
+  {
+    id: 101,
+    ministry: "KEMENTERIAN KESIHATAN",
+    vendor: "PHARMANIAGA LOGISTICS SDN BHD",
+    amount: 145000000,
+    method: "Direct Negotiation",
+    category: "Bekalan",
+    date: "2024-02-28",
+    reason: "Supply of critical medical consumables (APPL)",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
+  },
+  {
+    id: 102,
+    ministry: "KEMENTERIAN KERJA RAYA",
+    vendor: "HSS INTEGRATED SDN BHD",
+    amount: 24500000,
+    method: "Open Tender",
+    category: "Perkhidmatan",
+    date: "2024-02-25",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
+  },
+  {
+    id: 103,
+    ministry: "KEMENTERIAN PENDIDIKAN",
+    vendor: "YTL COMMUNICATIONS SDN BHD",
+    amount: 450000000,
+    method: "Direct Negotiation",
+    category: "Perkhidmatan",
+    date: "2024-01-15",
+    reason: "Extension of 1BestariNet Phase 2",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
+  },
+  {
+    id: 104,
+    ministry: "KEMENTERIAN PERTAHANAN",
+    vendor: "BOUSTEAD NAVAL SHIPYARD SDN BHD",
+    amount: 90000000,
+    method: "Direct Negotiation",
+    category: "Kerja",
+    date: "2024-01-20",
+    reason: "Maintenance of Royal Malaysian Navy Vessels",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
+  },
+  {
+    id: 105,
+    ministry: "KEMENTERIAN PENGANGKUTAN",
+    vendor: "SMRT CORPORATION",
+    amount: 12000000,
+    method: "Open Tender",
+    category: "Kerja",
+    date: "2024-02-10",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
+  },
+  {
+    id: 106,
+    ministry: "KEMENTERIAN DALAM NEGERI",
+    vendor: "DATASONIC TECHNOLOGIES SDN BHD",
+    amount: 35000000,
+    method: "Direct Negotiation",
+    category: "Bekalan",
+    date: "2024-02-05",
+    reason: "Supply of Passport Chips and Polycarbonate Data Pages",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
+  },
+  {
+    id: 107,
+    ministry: "JABATAN PERDANA MENTERI",
+    vendor: "SPANCO SDN BHD",
+    amount: 28000000,
+    method: "Direct Negotiation",
+    category: "Perkhidmatan",
+    date: "2024-01-30",
+    reason: "Government Vehicle Fleet Management Concession",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
+  },
+  {
+    id: 108,
+    ministry: "KEMENTERIAN KOMUNIKASI",
+    vendor: "TELEKOM MALAYSIA BERHAD",
+    amount: 8500000,
+    method: "Open Tender",
+    category: "Perkhidmatan",
+    date: "2024-02-18",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
+  },
+  {
+    id: 109,
+    ministry: "KEMENTERIAN SAINS, TEKNOLOGI DAN INOVASI",
+    vendor: "MIMOS BERHAD",
+    amount: 4500000,
+    method: "Direct Negotiation",
+    category: "Perkhidmatan",
+    date: "2024-02-22",
+    reason: "National Digital ID Research & Development",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
+  },
+  {
+    id: 110,
+    ministry: "KEMENTERIAN PERTANIAN DAN KETERJAMINAN MAKANAN",
+    vendor: "NAFAS",
+    amount: 65000000,
+    method: "Direct Negotiation",
+    category: "Bekalan",
+    date: "2024-01-12",
+    reason: "Subsidized Fertilizer Supply Scheme",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
+  },
+  {
+    id: 111,
+    ministry: "KEMENTERIAN KERJA RAYA",
+    vendor: "PINTAS UTAMA SDN BHD",
+    amount: 4200000,
+    method: "Open Tender",
+    category: "Kerja",
+    date: "2024-02-14",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
+  },
+  {
+    id: 112,
+    ministry: "KEMENTERIAN PENDIDIKAN TINGGI",
+    vendor: "GENTING INFO TECH",
+    amount: 1500000,
+    method: "Open Tender",
+    category: "Bekalan",
+    date: "2024-02-01",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
+  },
+  {
+    id: 113,
+    ministry: "KEMENTERIAN KESIHATAN",
+    vendor: "UEM EDGENTA BERHAD",
+    amount: 18000000,
+    method: "Open Tender",
+    category: "Perkhidmatan",
+    date: "2024-01-25",
+    sourceUrl: "https://myprocurement.treasury.gov.my/",
+    crawledAt: "2024-03-01T10:00:00.000Z"
   }
-
-  // Inject a few "High Profile" Anomalies for visual interest
-  records.push({
-      id: 1001,
-      ministry: "KEMENTERIAN PERTAHANAN",
-      vendor: "AeroSystem Defence Technologies Sdn Bhd",
-      amount: 450000000, // 450 Million
-      method: "Rundingan Terus",
-      category: "Bekalan",
-      date: new Date().toISOString().split('T')[0],
-      reason: "Kontrak Penyelenggaraan Jet Pejuang (Keselamatan Negara)",
-      sourceUrl: "#demo-high-value",
-      crawledAt: new Date().toISOString()
-  });
-
-  return records.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-};
-
-export const INITIAL_RECORDS: Record[] = generateMockData();
+];

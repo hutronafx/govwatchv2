@@ -33,15 +33,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshFeedback, setRefreshFeedback] = useState<{ type: 'success' | 'error' | 'info'; msg: string } | null>(null);
 
-  // LOADING
-  if (isLoading) {
-    return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn">
-            <RefreshCw className="w-10 h-10 text-gw-success animate-spin mb-4" />
-            <h2 className="text-xl font-bold text-white">Loading Dashboard...</h2>
-        </div>
-    );
-  }
+  // --- HOOKS MUST BE AT THE TOP (Before any conditional returns) ---
+  const filteredRecords = useMemo(() => {
+    return records.filter(r => {
+      const ministryRaw = (r.ministry || '').toLowerCase();
+      const ministryEn = translateMinistry(r.ministry).toLowerCase();
+      const vendor = (r.vendor || '').toLowerCase();
+      const search = searchTerm.toLowerCase();
+      
+      // Search matches either raw Malay name, Translated English name, or Vendor
+      const matchesSearch = ministryRaw.includes(search) || ministryEn.includes(search) || vendor.includes(search);
+      
+      // Category Filter
+      const matchesCategory = filterCategory === 'All' || (r.category || '').includes(filterCategory);
+
+      // Method Filter
+      let matchesMethod = false;
+      const methodRaw = (r.method || '').toLowerCase();
+      if (filterMethod === 'All') {
+          matchesMethod = true;
+      } else if (filterMethod === 'Direct Negotiation') {
+          // Robust check for English or Malay terms
+          matchesMethod = methodRaw.includes('direct') || methodRaw.includes('rundingan');
+      } else if (filterMethod === 'Open Tender') {
+          matchesMethod = methodRaw.includes('open') || methodRaw.includes('tender') || methodRaw.includes('terbuka');
+      } else {
+          matchesMethod = methodRaw.includes(filterMethod.toLowerCase());
+      }
+
+      return matchesSearch && matchesCategory && matchesMethod;
+    }).sort((a,b) => {
+      // Fix: Ensure numeric arithmetic for sorting
+      if (sortBy === 'value') return (b.amount || 0) - (a.amount || 0);
+      
+      // Default date sort (Handle invalid dates gracefully)
+      const dateA = new Date(a.date).getTime() || 0;
+      const dateB = new Date(b.date).getTime() || 0;
+      return dateB - dateA;
+    });
+  }, [records, searchTerm, filterCategory, filterMethod, sortBy]);
 
   // --- REFRESH HANDLER ---
   const handleRefreshData = async () => {
@@ -67,9 +97,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
     }
   };
 
+  // --- CONDITIONAL RETURNS (AFTER ALL HOOKS) ---
+  if (isLoading) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn">
+            <RefreshCw className="w-10 h-10 text-gw-success animate-spin mb-4" />
+            <h2 className="text-xl font-bold text-white">Loading Dashboard...</h2>
+        </div>
+    );
+  }
+
   // EMPTY STATE (Only if really 0 records)
-  // Fix: Removed !isRefreshing check so we stay in this view while loading
-  if (records.length === 0) {
+  if (records.length === 0 && !isRefreshing) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn p-4">
         <div className="bg-gw-card border border-gw-border rounded-full p-6 mb-6">
@@ -82,20 +121,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
         <button
             onClick={handleRefreshData}
             disabled={isRefreshing}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${
-              isRefreshing 
-                ? 'bg-gw-card border border-gw-border text-gw-muted cursor-wait' 
-                : 'bg-gw-success text-gw-bg hover:bg-gw-success/90'
-            }`}
+            className="flex items-center gap-2 px-6 py-3 bg-gw-success text-gw-bg rounded-lg font-bold hover:bg-gw-success/90 transition-all"
         >
             <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? 'Running Scraper...' : 'Fetch Initial Data'}
         </button>
         {refreshFeedback && (
-            <p className={`mt-4 text-sm font-medium ${
-                refreshFeedback.type === 'error' ? 'text-gw-danger' : 
-                refreshFeedback.type === 'success' ? 'text-gw-success' : 'text-blue-400'
-            }`}>
+            <p className={`mt-4 text-sm ${refreshFeedback.type === 'error' ? 'text-gw-danger' : 'text-blue-400'}`}>
                 {refreshFeedback.msg}
             </p>
         )}
@@ -149,46 +181,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 8); // Top 8 only
-
-  // --- TABLE FILTERING ---
-  const filteredRecords = useMemo(() => {
-    return records.filter(r => {
-      const ministryRaw = (r.ministry || '').toLowerCase();
-      const ministryEn = translateMinistry(r.ministry).toLowerCase();
-      const vendor = (r.vendor || '').toLowerCase();
-      const search = searchTerm.toLowerCase();
-      
-      // Search matches either raw Malay name, Translated English name, or Vendor
-      const matchesSearch = ministryRaw.includes(search) || ministryEn.includes(search) || vendor.includes(search);
-      
-      // Category Filter
-      const matchesCategory = filterCategory === 'All' || (r.category || '').includes(filterCategory);
-
-      // Method Filter
-      let matchesMethod = false;
-      const methodRaw = (r.method || '').toLowerCase();
-      if (filterMethod === 'All') {
-          matchesMethod = true;
-      } else if (filterMethod === 'Direct Negotiation') {
-          // Robust check for English or Malay terms
-          matchesMethod = methodRaw.includes('direct') || methodRaw.includes('rundingan');
-      } else if (filterMethod === 'Open Tender') {
-          matchesMethod = methodRaw.includes('open') || methodRaw.includes('tender') || methodRaw.includes('terbuka');
-      } else {
-          matchesMethod = methodRaw.includes(filterMethod.toLowerCase());
-      }
-
-      return matchesSearch && matchesCategory && matchesMethod;
-    }).sort((a,b) => {
-      // Fix: Ensure numeric arithmetic for sorting
-      if (sortBy === 'value') return (b.amount || 0) - (a.amount || 0);
-      
-      // Default date sort (Handle invalid dates gracefully)
-      const dateA = new Date(a.date).getTime() || 0;
-      const dateB = new Date(b.date).getTime() || 0;
-      return dateB - dateA;
-    });
-  }, [records, searchTerm, filterCategory, filterMethod, sortBy]);
 
   const handleExport = () => {
     downloadCSV(filteredRecords, `govwatch_export_${new Date().toISOString().split('T')[0]}.csv`);
