@@ -21,7 +21,19 @@ const translations = {
     btn_syncing: "Syncing...",
     lbl_updated: "Updated",
     no_records: "No Records Available",
+    no_records_desc: "The database is currently empty. Please update data via the Admin Panel or try refreshing below.",
+    btn_fetch_initial: "Fetch Initial Data",
+    loading_dashboard: "Loading Dashboard...",
+    loading_scraper: "Scraping live data... This may take ~1 minute.",
+    scraper_success: "Updated! Found {{count}} records. Reloading...",
+    scraper_fail: "Scrape failed. Check logs.",
+    scraper_network_error: "Network error connecting to scraper.",
     
+    // Charts Labels
+    cat_works: "Works",
+    cat_supplies: "Supplies",
+    cat_services: "Services",
+
     // Filters & Headers
     filter_sort: "Sort By",
     filter_cat: "Category",
@@ -32,13 +44,20 @@ const translations = {
     th_value: "Value",
     th_details: "Method & Category",
     
-    // Values
+    // Values & Options
     val_newest: "Newest First",
     val_highest: "Highest Value",
-    val_all_cat: "All Categories",
-    val_all_method: "All Methods",
+    opt_all_cat: "All Categories",
+    opt_works: "Works",
+    opt_supplies: "Supplies",
+    opt_services: "Services",
+    opt_all_methods: "All Methods",
     val_open_tender: "Open Tender",
     val_direct_nego: "Direct Negotiation",
+    
+    // Table States
+    tbl_no_results: "No records found matching your filters.",
+    tbl_showing_top: "Showing top {{count}} recent results",
 
     // Ministry List
     min_title: "Ministries & Agencies",
@@ -57,6 +76,12 @@ const translations = {
     det_vendor_dom: "Vendor Dominance",
     det_contract_history: "Contract History",
     det_justification: "Direct Negotiation Justification",
+    lbl_method_breakdown: "Method Breakdown (by count)",
+    lbl_direct_short: "Direct",
+    lbl_open_short: "Open/Quote",
+    lbl_percent_spend: "of total spend",
+    lbl_standard_procurement: "Standard procurement via open tender process.",
+    lbl_verified_on: "Verified on",
 
     // Vendor List
     ven_title: "Vendor Directory",
@@ -66,6 +91,32 @@ const translations = {
     ven_ministries_served: "Ministries Served",
     ven_total_value: "Total Value",
     ven_rank: "Rank",
+    th_company_name: "Company Name",
+    msg_no_vendors: "No vendors found matching your search.",
+
+    // Admin / Upload
+    admin_restricted: "Restricted Access",
+    admin_enter_pin: "Enter Admin PIN",
+    admin_unlock: "Unlock",
+    admin_update_db: "Update Database",
+    admin_mode_active: "ADMIN MODE ACTIVE",
+    admin_server_scraper: "Server Scraper",
+    admin_server_desc: "Attempts to scrape from the server. May fail if IP is blocked.",
+    admin_start_scrape: "Start Auto-Scrape",
+    admin_running: "Running...",
+    admin_issue: "Issue Detected",
+    admin_view_log: "View Debug Log",
+    admin_refresh_log: "Refresh Log",
+    admin_browser_script: "Browser Script",
+    admin_script_desc: "If the server scraper is blocked, copy this code and run it in your browser console on the government portal.",
+    admin_copy_code: "Copy Code",
+    admin_json_upload: "JSON Upload",
+    admin_drop_file: "Drop govwatch_data.json here",
+    admin_browse_files: "Browse Files",
+    admin_invalid_file: "Invalid File",
+    admin_scrape_success: "Success! Total records:",
+    admin_scrape_fail_blocked: "Scraper ran but found 0 records. Server IP might be blocked.",
+    admin_load_dashboard: "Scrape complete. Load dashboard?",
 
     // About
     abt_title: "Transparency in Action",
@@ -99,6 +150,18 @@ const translations = {
     btn_syncing: "Sedang Segerak...",
     lbl_updated: "Dikemaskini",
     no_records: "Tiada Rekod",
+    no_records_desc: "Pangkalan data kini kosong. Sila kemaskini data melalui Panel Admin atau cuba muat semula di bawah.",
+    btn_fetch_initial: "Dapatkan Data Asal",
+    loading_dashboard: "Memuatkan Papan Pemuka...",
+    loading_scraper: "Mengikis data langsung... Ini mungkin mengambil masa ~1 minit.",
+    scraper_success: "Dikemaskini! Menemui {{count}} rekod. Memuat semula...",
+    scraper_fail: "Gagal mengikis. Semak log.",
+    scraper_network_error: "Ralat rangkaian menyambung ke pengikis.",
+
+    // Charts Labels
+    cat_works: "Kerja",
+    cat_supplies: "Bekalan",
+    cat_services: "Perkhidmatan",
 
     // Filters & Headers
     filter_sort: "Susunan",
@@ -110,13 +173,20 @@ const translations = {
     th_value: "Nilai",
     th_details: "Kaedah & Kategori",
 
-    // Values
+    // Values & Options
     val_newest: "Terkini",
     val_highest: "Nilai Tertinggi",
-    val_all_cat: "Semua Kategori",
-    val_all_method: "Semua Kaedah",
+    opt_all_cat: "Semua Kategori",
+    opt_works: "Kerja",
+    opt_supplies: "Bekalan",
+    opt_services: "Perkhidmatan",
+    opt_all_methods: "Semua Kaedah",
     val_open_tender: "Tender Terbuka",
     val_direct_nego: "Rundingan Terus",
+
+    // Table States
+    tbl_no_results: "Tiada rekod ditemui yang sepadan dengan tapisan anda.",
+    tbl_showing_top: "Menunjukkan {{count}} keputusan terkini",
 
     // Ministry List
     min_title: "Kementerian & Agensi",
@@ -135,6 +205,12 @@ const translations = {
     det_vendor_dom: "Dominasi Pembekal",
     det_contract_history: "Sejarah Kontrak",
     det_justification: "Justifikasi Rundingan Terus",
+    lbl_method_breakdown: "Pecahan Kaedah (mengikut bilangan)",
+    lbl_direct_short: "Terus",
+    lbl_open_short: "Terbuka/Sebut Harga",
+    lbl_percent_spend: "daripada jumlah perbelanjaan",
+    lbl_standard_procurement: "Perolehan standard melalui proses tender terbuka.",
+    lbl_verified_on: "Disahkan pada",
 
     // Vendor List
     ven_title: "Direktori Pembekal",
@@ -144,6 +220,32 @@ const translations = {
     ven_ministries_served: "Kementerian Dilayan",
     ven_total_value: "Jumlah Nilai",
     ven_rank: "Kedudukan",
+    th_company_name: "Nama Syarikat",
+    msg_no_vendors: "Tiada pembekal ditemui yang sepadan dengan carian anda.",
+
+    // Admin / Upload
+    admin_restricted: "Akses Terhad",
+    admin_enter_pin: "Masukkan PIN Admin",
+    admin_unlock: "Buka Kunci",
+    admin_update_db: "Kemaskini Pangkalan Data",
+    admin_mode_active: "MOD ADMIN AKTIF",
+    admin_server_scraper: "Pengikis Pelayan",
+    admin_server_desc: "Cuba mengikis dari pelayan. Mungkin gagal jika IP disekat.",
+    admin_start_scrape: "Mula Pengikisan Auto",
+    admin_running: "Sedang berjalan...",
+    admin_issue: "Isu Dikesan",
+    admin_view_log: "Lihat Log Debug",
+    admin_refresh_log: "Muat Semula Log",
+    admin_browser_script: "Skrip Pelayar",
+    admin_script_desc: "Jika pengikis pelayan disekat, salin kod ini dan jalankan dalam konsol pelayar anda di portal kerajaan.",
+    admin_copy_code: "Salin Kod",
+    admin_json_upload: "Muat Naik JSON",
+    admin_drop_file: "Letak govwatch_data.json di sini",
+    admin_browse_files: "Semak Fail",
+    admin_invalid_file: "Fail Tidak Sah",
+    admin_scrape_success: "Berjaya! Jumlah rekod:",
+    admin_scrape_fail_blocked: "Pengikis berjalan tetapi menemui 0 rekod. IP pelayan mungkin disekat.",
+    admin_load_dashboard: "Pengikisan selesai. Muatkan papan pemuka?",
 
     // About
     abt_title: "Ketelusan Dalam Tindakan",

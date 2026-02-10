@@ -13,11 +13,12 @@ interface DashboardProps {
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
+  const { language } = useLanguage();
   if (active && payload && payload.length) {
     return (
       <div className="bg-gw-card border border-gw-border p-3 rounded shadow-xl z-50">
         <p className="text-gw-text font-bold text-sm mb-1">{payload[0].name || label}</p>
-        <p className="text-gw-success text-sm font-mono">{formatMoney(payload[0].value as number)}</p>
+        <p className="text-gw-success text-sm font-mono">{formatMoney(payload[0].value as number, language)}</p>
       </div>
     );
   }
@@ -79,22 +80,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   const handleRefreshData = async () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
-    setRefreshFeedback({ type: 'info', msg: 'Scraping live data... This may take ~1 minute.' });
+    setRefreshFeedback({ type: 'info', msg: t.loading_scraper });
 
     try {
       const res = await fetch('/api/trigger-scrape', { method: 'POST' });
       const data = await res.json();
 
       if (data.success) {
-        setRefreshFeedback({ type: 'success', msg: `Updated! Found ${data.count} records. Reloading...` });
+        setRefreshFeedback({ type: 'success', msg: t.scraper_success.replace('{{count}}', data.count) });
         // Reload page to fetch the new data.json from disk
         setTimeout(() => window.location.reload(), 2000);
       } else {
-         setRefreshFeedback({ type: 'error', msg: data.message || 'Scrape failed. Check logs.' });
+         setRefreshFeedback({ type: 'error', msg: data.message || t.scraper_fail });
          setIsRefreshing(false);
       }
     } catch (e) {
-      setRefreshFeedback({ type: 'error', msg: 'Network error connecting to scraper.' });
+      setRefreshFeedback({ type: 'error', msg: t.scraper_network_error });
       setIsRefreshing(false);
     }
   };
@@ -104,7 +105,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn">
             <RefreshCw className="w-10 h-10 text-gw-success animate-spin mb-4" />
-            <h2 className="text-xl font-bold text-white">Loading Dashboard...</h2>
+            <h2 className="text-xl font-bold text-white">{t.loading_dashboard}</h2>
         </div>
     );
   }
@@ -118,7 +119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
         </div>
         <h2 className="text-2xl font-bold text-white mb-2">{t.no_records}</h2>
         <p className="text-gw-muted max-w-md mb-8">
-          The database is currently empty. Please update data via the Admin Panel or try refreshing below.
+          {t.no_records_desc}
         </p>
         <button
             onClick={handleRefreshData}
@@ -126,7 +127,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
             className="flex items-center gap-2 px-6 py-3 bg-gw-success text-gw-bg rounded-lg font-bold hover:bg-gw-success/90 transition-all"
         >
             <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Running Scraper...' : 'Fetch Initial Data'}
+            {isRefreshing ? t.admin_running : t.btn_fetch_initial}
         </button>
         {refreshFeedback && (
             <p className={`mt-4 text-sm ${refreshFeedback.type === 'error' ? 'text-gw-danger' : 'text-blue-400'}`}>
@@ -164,9 +165,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   
   // 1. Pie Chart (Category Distribution)
   const categoryData = [
-    { name: t.kpi_works, value: worksSpend, color: '#ffadad' }, 
-    { name: t.kpi_supplies, value: suppliesSpend, color: '#36d399' }, 
-    { name: 'Services (Perkhidmatan)', value: servicesSpend, color: '#8da2ce' }, 
+    { name: t.cat_works, value: worksSpend, color: '#ffadad' }, 
+    { name: t.cat_supplies, value: suppliesSpend, color: '#36d399' }, 
+    { name: t.cat_services, value: servicesSpend, color: '#8da2ce' }, 
   ].filter(d => d.value > 0);
 
   // 2. Bar Chart (Top Ministries)
@@ -223,16 +224,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
         {lastCrawlDate && (
              <div className="flex items-center gap-2 text-xs text-gw-muted bg-gw-card px-3 py-2 rounded-lg border border-gw-border">
                 <Clock className="w-3 h-3" />
-                {t.lbl_updated}: {new Date(lastCrawlDate).toLocaleDateString()}
+                {t.lbl_updated}: {new Date(lastCrawlDate).toLocaleDateString(language === 'ms' ? 'ms-MY' : 'en-US')}
              </div>
         )}
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard label={t.kpi_total_value} value={formatMoney(totalSpend)} />
-        <StatCard label={t.kpi_works} value={formatMoney(worksSpend)} isAlert />
-        <StatCard label={t.kpi_supplies} value={formatMoney(suppliesSpend + servicesSpend)} />
+        <StatCard label={t.kpi_total_value} value={formatMoney(totalSpend, language)} />
+        <StatCard label={t.kpi_works} value={formatMoney(worksSpend, language)} isAlert />
+        <StatCard label={t.kpi_supplies} value={formatMoney(suppliesSpend + servicesSpend, language)} />
       </div>
 
       {/* Charts Row */}
@@ -319,10 +320,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                             onChange={(e) => setFilterCategory(e.target.value)}
                             className="bg-transparent text-sm text-gw-text focus:outline-none max-w-[120px]"
                         >
-                            <option value="All">{t.val_all_cat}</option>
-                            <option value="Kerja">Works</option>
-                            <option value="Bekalan">Supplies</option>
-                            <option value="Perkhidmatan">Services</option>
+                            <option value="All">{t.opt_all_cat}</option>
+                            <option value="Kerja">{t.opt_works}</option>
+                            <option value="Bekalan">{t.opt_supplies}</option>
+                            <option value="Perkhidmatan">{t.opt_services}</option>
                         </select>
                     </div>
 
@@ -334,7 +335,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                             onChange={(e) => setFilterMethod(e.target.value)}
                             className="bg-transparent text-sm text-gw-text focus:outline-none"
                         >
-                            <option value="All">{t.val_all_method}</option>
+                            <option value="All">{t.opt_all_methods}</option>
                             <option value="Open Tender">{t.val_open_tender}</option>
                             <option value="Direct Negotiation">{t.val_direct_nego}</option>
                         </select>
@@ -394,14 +395,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                       </button>
                     </td>
                     <td className="px-6 py-4 text-gw-muted truncate max-w-[200px]" title={r.vendor}>{r.vendor}</td>
-                    <td className="px-6 py-4 text-right font-bold text-gw-text font-mono">{formatMoney(r.amount)}</td>
+                    <td className="px-6 py-4 text-right font-bold text-gw-text font-mono">{formatMoney(r.amount, language)}</td>
                     <td className="px-6 py-4 text-right whitespace-nowrap flex flex-col gap-1 items-end justify-center h-full">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
                          (r.method || '').toLowerCase().includes('direct') || (r.method || '').toLowerCase().includes('rundingan')
                          ? 'bg-gw-danger/10 text-gw-danger border-gw-danger/20'
                          : 'bg-blue-400/10 text-blue-400 border-blue-400/20'
                       }`}>
-                         {(r.method || 'Open Tender')}
+                         {(r.method || '').toLowerCase().includes('direct') || (r.method || '').toLowerCase().includes('rundingan') ? t.val_direct_nego : t.val_open_tender}
                       </span>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] text-gw-muted border border-gw-border`}>
                         {r.category || 'General'}
@@ -411,14 +412,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                 ))}
                 {filteredRecords.length === 0 && (
                     <tr>
-                        <td colSpan={5} className="text-center py-8 text-gw-muted italic">No records found matching your filters.</td>
+                        <td colSpan={5} className="text-center py-8 text-gw-muted italic">{t.tbl_no_results}</td>
                     </tr>
                 )}
               </tbody>
             </table>
           </div>
           <div className="p-4 border-t border-gw-border bg-gw-bg/30 text-center text-xs text-gw-muted">
-            Showing top {Math.min(filteredRecords.length, 50)} recent results
+            {t.tbl_showing_top.replace('{{count}}', Math.min(filteredRecords.length, 50).toString())}
           </div>
       </div>
     </div>

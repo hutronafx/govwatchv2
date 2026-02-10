@@ -1,5 +1,8 @@
-export const formatMoney = (amount: number): string => {
-  return new Intl.NumberFormat('en-MY', {
+export const formatMoney = (amount: number, locale: 'en' | 'ms' = 'en'): string => {
+  // Use 'ms-MY' for Malay to get appropriate formatting (e.g. potential comma/dot differences), 
+  // though RM format is generally standardized.
+  const localeString = locale === 'ms' ? 'ms-MY' : 'en-MY';
+  return new Intl.NumberFormat(localeString, {
     style: 'currency',
     currency: 'MYR',
     maximumFractionDigits: 0,

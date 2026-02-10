@@ -9,7 +9,7 @@ interface VendorListProps {
 }
 
 export const VendorList: React.FC<VendorListProps> = ({ records }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Aggregate Data
@@ -61,7 +61,7 @@ export const VendorList: React.FC<VendorListProps> = ({ records }) => {
             <table className="w-full text-left text-sm">
                 <thead className="bg-gw-bg/50 border-b border-gw-border">
                     <tr>
-                        <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider">Company Name</th>
+                        <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider">{t.th_company_name}</th>
                         <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider text-center">{t.ven_contracts_won}</th>
                         <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider text-center">{t.ven_ministries_served}</th>
                         <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider text-right">{t.ven_total_value}</th>
@@ -80,13 +80,13 @@ export const VendorList: React.FC<VendorListProps> = ({ records }) => {
                                 </span>
                             </td>
                             <td className="px-6 py-4 text-center text-gw-muted">{v.ministryCount}</td>
-                            <td className="px-6 py-4 text-right font-bold text-gw-success font-mono">{formatMoney(v.value)}</td>
+                            <td className="px-6 py-4 text-right font-bold text-gw-success font-mono">{formatMoney(v.value, language)}</td>
                         </tr>
                     ))}
                     {sortedVendors.length === 0 && (
                         <tr>
                             <td colSpan={4} className="px-6 py-8 text-center text-gw-muted italic">
-                                No vendors found matching your search.
+                                {t.msg_no_vendors}
                             </td>
                         </tr>
                     )}

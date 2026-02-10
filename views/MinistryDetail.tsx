@@ -75,7 +75,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
             </div>
             <div className="text-left md:text-right">
                 <div className="text-sm text-gw-muted mb-1">{t.kpi_total_value}</div>
-                <div className="text-3xl font-bold text-gw-success">{formatMoney(totalSpend)}</div>
+                <div className="text-3xl font-bold text-gw-success">{formatMoney(totalSpend, language)}</div>
                 <div className="text-xs text-gw-muted mt-1">{filteredRecords.length} {t.min_contracts}</div>
             </div>
         </div>
@@ -96,7 +96,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
              <div className="space-y-6">
                 <div>
                     <div className="flex justify-between text-sm mb-2">
-                        <span className="text-gw-muted">Method Breakdown (by count)</span>
+                        <span className="text-gw-muted">{t.lbl_method_breakdown}</span>
                         <span className={`font-bold ${directPercent > 20 ? 'text-gw-danger' : 'text-gw-success'}`}>
                             {directPercent.toFixed(1)}% {t.val_direct_nego}
                         </span>
@@ -115,8 +115,8 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                         ></div>
                     </div>
                     <div className="flex justify-between text-xs text-gw-muted mt-2">
-                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-gw-danger"></div> Direct ({methodStats.directCount})</span>
-                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-gw-success"></div> Open/Quote ({methodStats.openCount})</span>
+                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-gw-danger"></div> {t.lbl_direct_short} ({methodStats.directCount})</span>
+                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-gw-success"></div> {t.lbl_open_short} ({methodStats.openCount})</span>
                     </div>
                 </div>
 
@@ -147,7 +147,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                              <span className="truncate max-w-[200px] text-white group-hover:text-blue-400 transition-colors" title={v.name}>
                                  {i+1}. {v.name}
                              </span>
-                             <span className="font-mono text-gw-muted">{formatMoney(v.value)}</span>
+                             <span className="font-mono text-gw-muted">{formatMoney(v.value, language)}</span>
                          </div>
                          <div className="w-full bg-gw-bg rounded-full h-1.5">
                              <div 
@@ -156,7 +156,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                              ></div>
                          </div>
                          <div className="text-[10px] text-right text-gw-muted mt-0.5">
-                             {v.percent.toFixed(1)}% of total spend
+                             {v.percent.toFixed(1)}% {t.lbl_percent_spend}
                          </div>
                      </div>
                  ))}
@@ -189,12 +189,12 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                                     <Calendar className="w-3 h-3" /> {r.date}
                                 </span>
                                 <span className="flex items-center gap-1">
-                                    <CreditCard className="w-3 h-3" /> {r.method}
+                                    <CreditCard className="w-3 h-3" /> {(r.method.toLowerCase().includes('direct') || r.method.toLowerCase().includes('rundingan')) ? t.val_direct_nego : t.val_open_tender}
                                 </span>
                             </div>
                         </div>
                         <div className={`text-xl font-bold ${r.method.toLowerCase().includes('rundingan') || r.method.toLowerCase().includes('direct') ? 'text-gw-danger' : 'text-gw-success'}`}>
-                            {formatMoney(r.amount)}
+                            {formatMoney(r.amount, language)}
                         </div>
                     </div>
                     
@@ -207,12 +207,12 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                              </div>
                         </div>
                     ) : (
-                        <div className="text-xs text-gw-muted italic opacity-50">Standard procurement via open tender process.</div>
+                        <div className="text-xs text-gw-muted italic opacity-50">{t.lbl_standard_procurement}</div>
                     )}
                     
                     {r.crawledAt && (
                         <div className="mt-2 pt-2 border-t border-gw-border/50 text-[10px] text-gw-muted/50">
-                            {t.lbl_updated}: {new Date(r.crawledAt).toLocaleString()}
+                            {t.lbl_verified_on}: {new Date(r.crawledAt).toLocaleString(language === 'ms' ? 'ms-MY' : 'en-US')}
                         </div>
                     )}
                 </div>

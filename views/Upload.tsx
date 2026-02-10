@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Upload as UploadIcon, FileJson, AlertTriangle, Lock, CheckCircle, Copy, Terminal, Server, Play, Loader2, Download, Image, Code } from 'lucide-react';
 import { Record } from '../types';
+import { useLanguage } from '../i18n';
 
 interface UploadProps {
   onDataLoaded: (data: Record[]) => void;
@@ -76,6 +77,7 @@ const BROWSER_SCRIPT = `
 `.trim();
 
 export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
+  const { t } = useLanguage();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pin, setPin] = useState('');
   
@@ -99,7 +101,7 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
 
   const handleAutoScrape = async () => {
     setScrapeStatus('running');
-    setScrapeMsg('Initializing browser & optimizing connection...');
+    setScrapeMsg(t.loading_scraper);
     setLogContent('');
     setIsLogOpen(false);
     
@@ -113,12 +115,12 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
             
             if (result.count === 0) {
                 setScrapeStatus('warning');
-                setScrapeMsg("Scraper ran but found 0 records. Server IP might be blocked.");
+                setScrapeMsg(t.admin_scrape_fail_blocked);
             } else {
                 setScrapeStatus('success');
-                setScrapeMsg(`Success! Total records: ${result.count}`);
+                setScrapeMsg(`${t.admin_scrape_success} ${result.count}`);
                 setTimeout(() => {
-                    if(confirm(`Scrape complete. ${result.count} records. Load dashboard?`)) onDataLoaded(dataJson);
+                    if(confirm(`${t.admin_scrape_success} ${result.count}. ${t.admin_load_dashboard}`)) onDataLoaded(dataJson);
                 }, 500);
             }
         } else {
@@ -127,7 +129,7 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
 
     } catch (err: any) {
         setScrapeStatus('error');
-        setScrapeMsg(err.message || "Connection failed");
+        setScrapeMsg(err.message || t.scraper_network_error);
     }
   };
 
@@ -145,7 +147,7 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
 
   const copyScript = () => {
     navigator.clipboard.writeText(BROWSER_SCRIPT);
-    alert("Script copied! Paste it into your browser console (F12) on the government portal.");
+    alert("Script copied!");
   };
 
   // Manual Upload Handlers
@@ -178,10 +180,10 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
                         <Lock className="w-8 h-8 text-gw-muted" />
                     </div>
                 </div>
-                <h2 className="text-xl font-bold text-white text-center mb-6">Restricted Access</h2>
+                <h2 className="text-xl font-bold text-white text-center mb-6">{t.admin_restricted}</h2>
                 <form onSubmit={handleLogin}>
-                    <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Enter Admin PIN" className="w-full bg-gw-bg border border-gw-border text-center text-white p-3 rounded mb-4 focus:border-gw-success focus:outline-none tracking-widest" autoFocus />
-                    <button type="submit" className="w-full bg-gw-success text-gw-bg font-bold py-3 rounded hover:bg-gw-success/90 transition-colors">Unlock</button>
+                    <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} placeholder={t.admin_enter_pin} className="w-full bg-gw-bg border border-gw-border text-center text-white p-3 rounded mb-4 focus:border-gw-success focus:outline-none tracking-widest" autoFocus />
+                    <button type="submit" className="w-full bg-gw-success text-gw-bg font-bold py-3 rounded hover:bg-gw-success/90 transition-colors">{t.admin_unlock}</button>
                 </form>
             </div>
         </div>
@@ -191,8 +193,8 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
   return (
     <div className="max-w-6xl mx-auto animate-fadeIn pb-12">
       <div className="text-center mb-8">
-        <div className="inline-block px-3 py-1 rounded-full bg-gw-success/10 text-gw-success text-xs font-bold mb-4 border border-gw-success/20">ADMIN MODE ACTIVE</div>
-        <h1 className="text-3xl font-bold text-white mb-2">Update Database</h1>
+        <div className="inline-block px-3 py-1 rounded-full bg-gw-success/10 text-gw-success text-xs font-bold mb-4 border border-gw-success/20">{t.admin_mode_active}</div>
+        <h1 className="text-3xl font-bold text-white mb-2">{t.admin_update_db}</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -200,30 +202,30 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
         {/* AUTO UPDATE */}
         <div className="bg-gw-card border border-gw-border rounded-xl p-6 flex flex-col relative overflow-hidden">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <Server className="w-5 h-5 text-gw-success" /> Server Scraper
+                <Server className="w-5 h-5 text-gw-success" /> {t.admin_server_scraper}
             </h3>
             
             <div className="space-y-3">
-                <p className="text-xs text-gw-muted">Attempts to scrape from the server. May fail if IP is blocked.</p>
+                <p className="text-xs text-gw-muted">{t.admin_server_desc}</p>
                 {scrapeStatus === 'idle' && (
                     <button onClick={handleAutoScrape} className="w-full py-4 bg-gw-success hover:bg-gw-success/90 text-gw-bg font-bold rounded-lg transition-all flex items-center justify-center gap-2">
-                        <Play className="w-5 h-5" /> Start Auto-Scrape
+                        <Play className="w-5 h-5" /> {t.admin_start_scrape}
                     </button>
                 )}
                 {scrapeStatus === 'running' && (
                     <div className="w-full py-4 bg-gw-card border border-gw-border rounded-lg flex flex-col items-center justify-center gap-2 text-gw-success">
-                        <div className="flex items-center gap-2"><Loader2 className="w-5 h-5 animate-spin" /><span>Running...</span></div>
+                        <div className="flex items-center gap-2"><Loader2 className="w-5 h-5 animate-spin" /><span>{t.admin_running}</span></div>
                         <span className="text-xs text-gw-muted">{scrapeMsg}</span>
                     </div>
                 )}
                 {(scrapeStatus === 'error' || scrapeStatus === 'warning') && (
                     <div className="mt-2 p-3 bg-gw-danger/10 border border-gw-danger/30 rounded text-center">
                         <div className="text-gw-danger font-bold text-sm mb-2 flex items-center justify-center gap-2">
-                            <AlertTriangle className="w-4 h-4" /> Issue Detected
+                            <AlertTriangle className="w-4 h-4" /> {t.admin_issue}
                         </div>
                         <button onClick={fetchLog} className="text-xs underline text-gw-text hover:text-white flex items-center justify-center gap-1 mx-auto">
                            {isLoadingLog ? <Loader2 className="w-3 h-3 animate-spin"/> : <Terminal className="w-3 h-3" />}
-                           {isLogOpen ? "Refresh Log" : "View Debug Log"}
+                           {isLogOpen ? t.admin_refresh_log : t.admin_view_log}
                         </button>
                     </div>
                 )}
@@ -236,10 +238,10 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
         {/* BROWSER SCRIPT */}
         <div className="bg-gw-card border border-gw-border rounded-xl p-6 flex flex-col">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <Code className="w-5 h-5 text-blue-400" /> Browser Script
+                <Code className="w-5 h-5 text-blue-400" /> {t.admin_browser_script}
             </h3>
             <p className="text-xs text-gw-muted mb-4">
-                If the server scraper is blocked, copy this code and run it in your browser console on the government portal.
+                {t.admin_script_desc}
             </p>
             <div className="flex-1 bg-black rounded border border-gw-border p-3 relative group">
                 <code className="text-gw-success text-[10px] font-mono break-all line-clamp-[10]">
@@ -250,7 +252,7 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
                     onClick={copyScript}
                     className="absolute bottom-2 right-2 bg-gw-bg border border-gw-border hover:bg-gw-card text-white text-xs px-3 py-1 rounded flex items-center gap-2 transition-colors"
                 >
-                    <Copy className="w-3 h-3" /> Copy Code
+                    <Copy className="w-3 h-3" /> {t.admin_copy_code}
                 </button>
             </div>
         </div>
@@ -258,21 +260,21 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
         {/* MANUAL UPLOAD */}
         <div className="bg-gw-bg/50 p-6 rounded-xl border border-gw-border flex flex-col">
              <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-                <FileJson className="w-5 h-5 text-orange-400" /> JSON Upload
+                <FileJson className="w-5 h-5 text-orange-400" /> {t.admin_json_upload}
              </h3>
              <div className={`bg-gw-card border-2 border-dashed rounded-xl p-4 text-center transition-all flex-1 flex flex-col justify-center ${isDragging ? 'border-gw-success' : status === 'error' ? 'border-gw-danger' : 'border-gw-border'}`} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
                 {status === 'idle' && (
                 <>
                     <UploadIcon className="w-8 h-8 text-gw-muted mx-auto mb-2" />
-                    <p className="text-gw-muted text-xs mb-2">Drop <code>govwatch_data.json</code> here</p>
+                    <p className="text-gw-muted text-xs mb-2">{t.admin_drop_file}</p>
                     <label className="text-xs text-blue-400 cursor-pointer hover:underline">
-                        Browse Files <input type="file" className="hidden" accept=".json" onChange={handleFileSelect} />
+                        {t.admin_browse_files} <input type="file" className="hidden" accept=".json" onChange={handleFileSelect} />
                     </label>
                 </>
                 )}
                 {status === 'processing' && <Loader2 className="w-8 h-8 text-gw-success animate-spin mx-auto" />}
                 {status === 'success' && <CheckCircle className="w-8 h-8 text-gw-success mx-auto" />}
-                {status === 'error' && <div className="text-gw-danger text-xs">Invalid File</div>}
+                {status === 'error' && <div className="text-gw-danger text-xs">{t.admin_invalid_file}</div>}
             </div>
         </div>
 
