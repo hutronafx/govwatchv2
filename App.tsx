@@ -8,8 +8,9 @@ import { Upload } from './views/Upload';
 import { About } from './views/About';
 import { INITIAL_RECORDS } from './data';
 import { ViewConfig, Record } from './types';
+import { LanguageProvider } from './i18n';
 
-function App() {
+function AppContent() {
   const [viewConfig, setViewConfig] = useState<ViewConfig>({ view: 'dashboard' });
   const [records, setRecords] = useState<Record[]>(INITIAL_RECORDS);
   const [isLoading, setIsLoading] = useState(true);
@@ -148,6 +149,14 @@ function App() {
         <About />
       )}
     </Layout>
+  );
+}
+
+function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }
 

@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { Record as ProcurementRecord } from '../types';
 import { formatMoney } from '../utils';
 import { Store, Search, Filter } from 'lucide-react';
+import { useLanguage } from '../i18n';
 
 interface VendorListProps {
   records: ProcurementRecord[];
 }
 
 export const VendorList: React.FC<VendorListProps> = ({ records }) => {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Aggregate Data
@@ -38,15 +40,15 @@ export const VendorList: React.FC<VendorListProps> = ({ records }) => {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <Store className="w-8 h-8 text-gw-success" />
-            Vendor Directory
+            {t.ven_title}
           </h1>
-          <p className="text-gw-muted mt-1">Companies awarded government contracts.</p>
+          <p className="text-gw-muted mt-1">{t.ven_subtitle}</p>
         </div>
         <div className="relative">
              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gw-muted" />
              <input 
                 type="text" 
-                placeholder="Search company name..." 
+                placeholder={t.ven_search}
                 className="bg-gw-card border border-gw-border rounded-full pl-10 pr-4 py-2 text-sm text-gw-text focus:border-gw-success focus:outline-none w-64 shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -60,9 +62,9 @@ export const VendorList: React.FC<VendorListProps> = ({ records }) => {
                 <thead className="bg-gw-bg/50 border-b border-gw-border">
                     <tr>
                         <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider">Company Name</th>
-                        <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider text-center">Contracts Won</th>
-                        <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider text-center">Ministries Served</th>
-                        <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider text-right">Total Value</th>
+                        <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider text-center">{t.ven_contracts_won}</th>
+                        <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider text-center">{t.ven_ministries_served}</th>
+                        <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider text-right">{t.ven_total_value}</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gw-border">
@@ -70,7 +72,7 @@ export const VendorList: React.FC<VendorListProps> = ({ records }) => {
                         <tr key={v.name} className="hover:bg-gw-bg/30 transition-colors">
                             <td className="px-6 py-4">
                                 <div className="font-medium text-white">{v.name}</div>
-                                <div className="text-xs text-gw-muted hidden sm:block">Rank #{i + 1}</div>
+                                <div className="text-xs text-gw-muted hidden sm:block">{t.ven_rank} #{i + 1}</div>
                             </td>
                             <td className="px-6 py-4 text-center">
                                 <span className="px-2 py-1 rounded bg-gw-bg border border-gw-border text-gw-text text-xs font-mono">

@@ -10,6 +10,19 @@ export const formatDate = (dateStr: string): string => {
   return dateStr; // Already YYYY-MM-DD
 };
 
+// Helper to Title Case Malay names
+const toTitleCase = (str: string) => {
+    return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+};
+
+// Returns the display name based on language preference
+export const getMinistryLabel = (rawName: string, lang: 'en' | 'ms'): string => {
+  if (lang === 'ms') {
+    return toTitleCase(rawName);
+  }
+  return translateMinistry(rawName);
+};
+
 export const translateMinistry = (malayName: string): string => {
   const normalized = malayName.toUpperCase().trim();
   
@@ -47,7 +60,7 @@ export const translateMinistry = (malayName: string): string => {
   if (normalized.includes("JABATAN BOMBA")) return "Fire & Rescue Department";
 
   // Fallback: title case the malay name
-  return normalized.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+  return toTitleCase(normalized);
 };
 
 export const downloadCSV = (data: any[], filename: string) => {

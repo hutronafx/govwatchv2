@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Record as ProcurementRecord } from '../types';
 import { StatCard } from '../components/StatCard';
-import { formatMoney, translateMinistry, downloadCSV } from '../utils';
+import { formatMoney, translateMinistry, downloadCSV, getMinistryLabel } from '../utils';
 import { ArrowUpRight, Search, FileText, RefreshCw, Filter, ArrowUpDown, Download, Clock, Briefcase } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
+import { useLanguage } from '../i18n';
 
 interface DashboardProps {
   records: ProcurementRecord[];
@@ -24,6 +25,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMinistryClick }) => {
+  const { t, language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'value'>('date');
   const [filterCategory, setFilterCategory] = useState<string>('All');
@@ -114,7 +116,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
         <div className="bg-gw-card border border-gw-border rounded-full p-6 mb-6">
           <FileText className="w-12 h-12 text-gw-muted" />
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">No Records Available</h2>
+        <h2 className="text-2xl font-bold text-white mb-2">{t.no_records}</h2>
         <p className="text-gw-muted max-w-md mb-8">
           The database is currently empty. Please update data via the Admin Panel or try refreshing below.
         </p>
@@ -162,18 +164,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   
   // 1. Pie Chart (Category Distribution)
   const categoryData = [
-    { name: 'Works (Kerja)', value: worksSpend, color: '#ffadad' }, 
-    { name: 'Supplies (Bekalan)', value: suppliesSpend, color: '#36d399' }, 
+    { name: t.kpi_works, value: worksSpend, color: '#ffadad' }, 
+    { name: t.kpi_supplies, value: suppliesSpend, color: '#36d399' }, 
     { name: 'Services (Perkhidmatan)', value: servicesSpend, color: '#8da2ce' }, 
   ].filter(d => d.value > 0);
 
   // 2. Bar Chart (Top Ministries)
   const ministryTotals = records.reduce((acc: { [key: string]: number }, curr) => {
     if (!curr.ministry) return acc;
-    // Translate the key for the chart
-    const englishName = translateMinistry(curr.ministry);
-    const currentVal = acc[englishName] || 0;
-    acc[englishName] = currentVal + (curr.amount || 0);
+    // Translate the key for the chart based on language preference
+    const label = getMinistryLabel(curr.ministry, language);
+    const currentVal = acc[label] || 0;
+    acc[label] = currentVal + (curr.amount || 0);
     return acc;
   }, {});
 
@@ -214,30 +216,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
             }`}
         >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Syncing...' : 'Refresh Data'}
+            {isRefreshing ? t.btn_syncing : t.btn_refresh}
         </button>
 
         {/* Last Updated Badge */}
         {lastCrawlDate && (
              <div className="flex items-center gap-2 text-xs text-gw-muted bg-gw-card px-3 py-2 rounded-lg border border-gw-border">
                 <Clock className="w-3 h-3" />
-                Updated: {new Date(lastCrawlDate).toLocaleDateString()}
+                {t.lbl_updated}: {new Date(lastCrawlDate).toLocaleDateString()}
              </div>
         )}
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard label="Total Contract Value" value={formatMoney(totalSpend)} />
-        <StatCard label="Works & Construction" value={formatMoney(worksSpend)} isAlert />
-        <StatCard label="Supplies & Services" value={formatMoney(suppliesSpend + servicesSpend)} />
+        <StatCard label={t.kpi_total_value} value={formatMoney(totalSpend)} />
+        <StatCard label={t.kpi_works} value={formatMoney(worksSpend)} isAlert />
+        <StatCard label={t.kpi_supplies} value={formatMoney(suppliesSpend + servicesSpend)} />
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[400px]">
          {/* Bar Chart (Horizontal) */}
          <div className="lg:col-span-2 bg-gw-card border border-gw-border rounded-lg p-6 flex flex-col">
-            <h3 className="text-lg font-bold mb-4 text-white">Top Spending Ministries</h3>
+            <h3 className="text-lg font-bold mb-4 text-white">{t.chart_top_ministries}</h3>
             <div className="flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={barChartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -262,7 +264,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
 
          {/* Pie Chart */}
          <div className="bg-gw-card border border-gw-border rounded-lg p-6 flex flex-col">
-            <h3 className="text-lg font-bold mb-4 text-white">Category Breakdown</h3>
+            <h3 className="text-lg font-bold mb-4 text-white">{t.chart_categories}</h3>
             <div className="flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -293,7 +295,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
           <div className="p-4 border-b border-gw-border flex flex-col xl:flex-row justify-between items-center gap-4 bg-gw-bg/30">
             <div className="flex flex-col md:flex-row items-center gap-2 w-full xl:w-auto">
                  <h2 className="text-lg font-bold text-white flex items-center gap-2 mr-2">
-                    <FileText className="w-5 h-5" /> Recent Awards
+                    <FileText className="w-5 h-5" /> {t.table_recent_awards}
                  </h2>
                  <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start w-full md:w-auto">
                     {/* Sort Dropdown */}
@@ -304,8 +306,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                             onChange={(e) => setSortBy(e.target.value as any)}
                             className="bg-transparent text-sm text-gw-text focus:outline-none"
                         >
-                            <option value="date">Newest First</option>
-                            <option value="value">Highest Value</option>
+                            <option value="date">{t.val_newest}</option>
+                            <option value="value">{t.val_highest}</option>
                         </select>
                     </div>
 
@@ -317,7 +319,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                             onChange={(e) => setFilterCategory(e.target.value)}
                             className="bg-transparent text-sm text-gw-text focus:outline-none max-w-[120px]"
                         >
-                            <option value="All">All Categories</option>
+                            <option value="All">{t.val_all_cat}</option>
                             <option value="Kerja">Works</option>
                             <option value="Bekalan">Supplies</option>
                             <option value="Perkhidmatan">Services</option>
@@ -332,9 +334,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                             onChange={(e) => setFilterMethod(e.target.value)}
                             className="bg-transparent text-sm text-gw-text focus:outline-none"
                         >
-                            <option value="All">All Methods</option>
-                            <option value="Open Tender">Open Tender</option>
-                            <option value="Direct Negotiation">Direct Negotiation</option>
+                            <option value="All">{t.val_all_method}</option>
+                            <option value="Open Tender">{t.val_open_tender}</option>
+                            <option value="Direct Negotiation">{t.val_direct_nego}</option>
                         </select>
                     </div>
                  </div>
@@ -345,7 +347,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gw-muted" />
                     <input 
                         type="text" 
-                        placeholder="Search records..." 
+                        placeholder={t.search_placeholder}
                         className="w-full bg-gw-bg border border-gw-border text-sm rounded-full pl-10 pr-4 py-2 text-gw-text focus:outline-none focus:border-gw-success"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -366,11 +368,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
             <table className="w-full text-left text-sm">
               <thead className="bg-gw-bg/95">
                 <tr>
-                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">Date</th>
-                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">Ministry</th>
-                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">Vendor</th>
-                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right">Value</th>
-                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right">Method & Category</th>
+                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">{t.th_date}</th>
+                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">{t.th_ministry}</th>
+                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">{t.th_vendor}</th>
+                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right">{t.th_value}</th>
+                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right">{t.th_details}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gw-border">
@@ -383,7 +385,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                         className="text-white hover:text-gw-success font-medium flex flex-col items-start transition-colors text-left"
                       >
                         <span className="line-clamp-1 max-w-[250px] font-bold" title={r.ministry}>
-                            {translateMinistry(r.ministry)}
+                            {getMinistryLabel(r.ministry, language)}
                         </span>
                         <span className="text-[10px] text-gw-muted flex items-center gap-1">
                             {r.ministry} 

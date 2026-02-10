@@ -1,7 +1,8 @@
 import React from 'react';
 import { Record } from '../types';
-import { formatMoney, translateMinistry } from '../utils';
+import { formatMoney, getMinistryLabel } from '../utils';
 import { ArrowLeft, Building2, Calendar, CreditCard, FileWarning, AlertTriangle, PieChart as PieChartIcon, Link as LinkIcon } from 'lucide-react';
+import { useLanguage } from '../i18n';
 
 interface MinistryDetailProps {
   ministryName: string;
@@ -10,6 +11,7 @@ interface MinistryDetailProps {
 }
 
 export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, records, onBack }) => {
+  const { t, language } = useLanguage();
   const filteredRecords = records.filter(r => r.ministry === ministryName).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const totalSpend = filteredRecords.reduce((acc, r) => acc + r.amount, 0);
 
@@ -55,7 +57,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
         className="flex items-center text-gw-muted hover:text-gw-text transition-colors mb-4 group"
       >
         <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-        Back to Dashboard
+        {t.det_back}
       </button>
 
       {/* HEADER CARD */}
@@ -66,15 +68,15 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                     <div className="p-2 bg-gw-bg rounded border border-gw-border">
                         <Building2 className="w-6 h-6 text-gw-muted" />
                     </div>
-                    <span className="text-gw-muted uppercase tracking-wider text-sm font-semibold">Ministry Profile</span>
+                    <span className="text-gw-muted uppercase tracking-wider text-sm font-semibold">{t.det_profile}</span>
                 </div>
-                <h1 className="text-3xl font-bold text-white">{translateMinistry(ministryName)}</h1>
+                <h1 className="text-3xl font-bold text-white">{getMinistryLabel(ministryName, language)}</h1>
                 <p className="text-gw-muted text-sm mt-1">{ministryName}</p>
             </div>
             <div className="text-left md:text-right">
-                <div className="text-sm text-gw-muted mb-1">Total Contract Value</div>
+                <div className="text-sm text-gw-muted mb-1">{t.kpi_total_value}</div>
                 <div className="text-3xl font-bold text-gw-success">{formatMoney(totalSpend)}</div>
-                <div className="text-xs text-gw-muted mt-1">{filteredRecords.length} Total Contracts</div>
+                <div className="text-xs text-gw-muted mt-1">{filteredRecords.length} {t.min_contracts}</div>
             </div>
         </div>
       </div>
@@ -87,7 +89,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5 text-gw-danger" />
-                    Procurement Integrity
+                    {t.det_integrity}
                 </h3>
              </div>
              
@@ -96,7 +98,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                     <div className="flex justify-between text-sm mb-2">
                         <span className="text-gw-muted">Method Breakdown (by count)</span>
                         <span className={`font-bold ${directPercent > 20 ? 'text-gw-danger' : 'text-gw-success'}`}>
-                            {directPercent.toFixed(1)}% Direct Negotiation
+                            {directPercent.toFixed(1)}% {t.val_direct_nego}
                         </span>
                     </div>
                     {/* Visual Bar */}
@@ -119,11 +121,11 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                 </div>
 
                 <div className="bg-gw-bg/50 p-4 rounded border border-gw-border">
-                    <h4 className="text-xs font-bold text-gw-muted uppercase mb-2">Risk Analysis</h4>
+                    <h4 className="text-xs font-bold text-gw-muted uppercase mb-2">{t.det_risk_analysis}</h4>
                     <p className="text-sm text-gw-text">
                         {directPercent > 30 
-                            ? "High risk of limited competition. A significant portion of contracts are awarded via Direct Negotiation."
-                            : "Healthy procurement mix. Most contracts appear to be competitive."}
+                            ? t.det_risk_high
+                            : t.det_risk_low}
                     </p>
                 </div>
              </div>
@@ -134,7 +136,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <PieChartIcon className="w-5 h-5 text-blue-400" />
-                    Vendor Dominance
+                    {t.det_vendor_dom}
                 </h3>
              </div>
 
@@ -164,7 +166,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
 
       {/* DETAILED LIST */}
       <div>
-        <h3 className="text-xl font-bold text-white mb-4">Contract History</h3>
+        <h3 className="text-xl font-bold text-white mb-4">{t.det_contract_history}</h3>
         <div className="grid grid-cols-1 gap-4">
             {filteredRecords.map((r) => (
                 <div key={r.id} className="bg-gw-card border border-gw-border rounded-lg p-5 hover:border-gw-muted/50 transition-colors relative">
@@ -200,7 +202,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                         <div className="bg-gw-danger/5 rounded p-3 text-sm text-gw-text border border-gw-danger/20 flex gap-2 items-start">
                              <FileWarning className="w-4 h-4 text-gw-danger shrink-0 mt-0.5" />
                              <div>
-                                <span className="text-gw-danger font-semibold uppercase text-xs tracking-wide block mb-1">Direct Negotiation Justification</span>
+                                <span className="text-gw-danger font-semibold uppercase text-xs tracking-wide block mb-1">{t.det_justification}</span>
                                 {r.reason}
                              </div>
                         </div>
@@ -210,7 +212,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                     
                     {r.crawledAt && (
                         <div className="mt-2 pt-2 border-t border-gw-border/50 text-[10px] text-gw-muted/50">
-                            Verified on: {new Date(r.crawledAt).toLocaleString()}
+                            {t.lbl_updated}: {new Date(r.crawledAt).toLocaleString()}
                         </div>
                     )}
                 </div>

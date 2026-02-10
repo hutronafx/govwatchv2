@@ -1,5 +1,6 @@
 import React from 'react';
-import { Eye, LayoutDashboard, Building2, Store, Info } from 'lucide-react';
+import { Eye, LayoutDashboard, Building2, Store, Info, Languages } from 'lucide-react';
+import { useLanguage } from '../i18n';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -8,6 +9,8 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, activeView, onNavigate }) => {
+  const { language, toggleLanguage, t } = useLanguage();
+
   const navItemClass = (isActive: boolean) => 
     `flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
       isActive 
@@ -26,35 +29,49 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeView, onNavigate
               </div>
               <span className="font-bold text-xl tracking-tight text-white">GovWatch <span className="text-gw-muted font-normal">MY</span></span>
             </div>
-            <div className="flex space-x-1 md:space-x-2">
+            
+            <div className="flex items-center space-x-1 md:space-x-2">
               <button
                 onClick={() => onNavigate('dashboard')}
                 className={navItemClass(activeView === 'dashboard')}
               >
                 <LayoutDashboard className="w-4 h-4 mr-2" />
-                <span className="hidden md:inline">Dashboard</span>
+                <span className="hidden md:inline">{t.nav_dashboard}</span>
               </button>
               <button
                 onClick={() => onNavigate('ministry_list')}
                 className={navItemClass(activeView.includes('ministry'))}
               >
                 <Building2 className="w-4 h-4 mr-2" />
-                <span className="hidden md:inline">Ministries</span>
+                <span className="hidden md:inline">{t.nav_ministries}</span>
               </button>
               <button
                 onClick={() => onNavigate('vendor_list')}
                 className={navItemClass(activeView === 'vendor_list')}
               >
                 <Store className="w-4 h-4 mr-2" />
-                <span className="hidden md:inline">Vendors</span>
+                <span className="hidden md:inline">{t.nav_vendors}</span>
               </button>
-              <div className="w-px h-6 bg-gw-border mx-2"></div>
               <button
                 onClick={() => onNavigate('about')}
                 className={navItemClass(activeView === 'about')}
               >
                 <Info className="w-4 h-4 mr-2" />
-                <span className="hidden md:inline">About</span>
+                <span className="hidden md:inline">{t.nav_about}</span>
+              </button>
+              
+              <div className="w-px h-6 bg-gw-border mx-2"></div>
+              
+              {/* Language Toggle */}
+              <button 
+                onClick={toggleLanguage}
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold text-gw-muted hover:text-white hover:bg-gw-card/50 transition-colors"
+                title="Switch Language"
+              >
+                <Languages className="w-4 h-4" />
+                <span className={language === 'en' ? 'text-white' : 'text-gw-muted'}>EN</span>
+                <span className="text-gw-border">|</span>
+                <span className={language === 'ms' ? 'text-white' : 'text-gw-muted'}>BM</span>
               </button>
             </div>
           </div>
