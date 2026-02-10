@@ -41,9 +41,23 @@ app.post('/api/trigger-scrape', async (req, res) => {
     // Check results
     const dataFile = path.join(__dirname, '../public/data.json');
     let count = 0;
+    
+    // Safety check: Create if not exists to avoid crashes on read
+    if (!fs.existsSync(dataFile)) {
+        try { fs.writeFileSync(dataFile, '[]'); } catch(e) {}
+    }
+
     if (fs.existsSync(dataFile)) {
-       const data = JSON.parse(fs.readFileSync(dataFile, 'utf-8'));
-       count = data.length;
+       try {
+         const fileContent = fs.readFileSync(dataFile, 'utf-8');
+         // Check for empty string
+         if (fileContent.trim()) {
+            const data = JSON.parse(fileContent);
+            if (Array.isArray(data)) count = data.length;
+         }
+       } catch (err) {
+         console.error("Error reading data.json:", err);
+       }
     }
     
     res.json({ success: true, count, message: 'Scrape completed.' });

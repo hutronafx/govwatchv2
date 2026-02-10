@@ -68,7 +68,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   };
 
   // EMPTY STATE (Only if really 0 records)
-  if (records.length === 0 && !isRefreshing) {
+  // Fix: Removed !isRefreshing check so we stay in this view while loading
+  if (records.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn p-4">
         <div className="bg-gw-card border border-gw-border rounded-full p-6 mb-6">
@@ -81,13 +82,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
         <button
             onClick={handleRefreshData}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-6 py-3 bg-gw-success text-gw-bg rounded-lg font-bold hover:bg-gw-success/90 transition-all"
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${
+              isRefreshing 
+                ? 'bg-gw-card border border-gw-border text-gw-muted cursor-wait' 
+                : 'bg-gw-success text-gw-bg hover:bg-gw-success/90'
+            }`}
         >
             <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? 'Running Scraper...' : 'Fetch Initial Data'}
         </button>
         {refreshFeedback && (
-            <p className={`mt-4 text-sm ${refreshFeedback.type === 'error' ? 'text-gw-danger' : 'text-blue-400'}`}>
+            <p className={`mt-4 text-sm font-medium ${
+                refreshFeedback.type === 'error' ? 'text-gw-danger' : 
+                refreshFeedback.type === 'success' ? 'text-gw-success' : 'text-blue-400'
+            }`}>
                 {refreshFeedback.msg}
             </p>
         )}
