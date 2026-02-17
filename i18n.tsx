@@ -20,6 +20,7 @@ const translations = {
     btn_refresh: "Refresh Data",
     btn_syncing: "Syncing...",
     lbl_updated: "Updated",
+    lbl_data_period: "Data from 1st January 2023 to present. Updated weekly.",
     no_records: "No Records Available",
     no_records_desc: "The database is currently empty. Please update data via the Admin Panel or try refreshing below.",
     btn_fetch_initial: "Fetch Initial Data",
@@ -83,6 +84,10 @@ const translations = {
     lbl_standard_procurement: "Standard procurement via open tender process.",
     lbl_verified_on: "Verified on",
     
+    // Vendor Detail
+    det_vendor_profile: "Vendor Profile",
+    det_ministries_served: "Ministries Served",
+    
     // Risk Score
     det_risk_score: "Procurement Risk Score",
     det_risk_level: "Risk Level",
@@ -128,7 +133,15 @@ const translations = {
 
     // About
     abt_title: "Transparency in Action",
-    abt_subtitle: "GovWatch MY is an independent initiative to visualize, track, and analyze Malaysian government procurement data.",
+    abt_subtitle: "GovWatch MY is an independent initiative to visualise, track, and analyse Malaysian government procurement data.",
+    
+    abt_value_headline: "Every Ringgit Counted. Every Contract Tracked.",
+    abt_value_desc: "Malaysia spends billions on procurement every year. We turned thousands of scattered data cards into a searchable database so you can see exactly where the money goes. GovWatch empowers citizens, journalists, and researchers to monitor ministry spending, track direct negotiations, and demand efficiency.",
+    
+    abt_mission_title: "Our Mission: Increasing Transparency",
+    abt_mission_desc_1: "As Malaysian students, we realised that transparency isn't just a policy problem, but a data accessibility problem. Millions of ringgit in procurement data exists, but it is locked behind unstructured tables and bureaucratic jargon.",
+    abt_mission_desc_2: "GovWatch bridges the gap between Civic Engagement and Software Engineering. We don't just ask for transparency; we code the tools to enforce it. By converting raw spending data into interactive visualizations, we empower voters, journalists, and student leaders to hold institutions accountable with maths, not just rhetoric.",
+
     abt_accountability: "Accountability",
     abt_accountability_desc: "Ensuring tax money is spent efficiently by monitoring Direct Negotiations vs Open Tenders.",
     abt_opendata: "Open Data",
@@ -136,9 +149,15 @@ const translations = {
     abt_accessibility: "Accessibility",
     abt_accessibility_desc: "Making complex financial data easy to understand through interactive dashboards and charts.",
     abt_methodology: "Methodology",
+    abt_methodology_text: "GovWatch aggregates data from public government portals, specifically the MyProcurement system managed by the Ministry of Finance.",
     abt_similar: "Similar Initiatives",
     abt_disclaimer: "Disclaimer",
-    abt_not_official: "Not an Official Government Website."
+    abt_not_official: "Not an Official Government Website.",
+
+    // Footer Credits
+    ftr_developer: "Lead Developer & Founder",
+    ftr_role: "Student & Founder of",
+    ftr_built: "Built as an independent initiative to modernise Malaysian civic data."
   },
   ms: {
     nav_dashboard: "Papan Pemuka",
@@ -157,6 +176,7 @@ const translations = {
     btn_refresh: "Muat Semula",
     btn_syncing: "Sedang Segerak...",
     lbl_updated: "Dikemaskini",
+    lbl_data_period: "Data dari 1 Januari 2023 hingga kini. Dikemaskini setiap minggu.",
     no_records: "Tiada Rekod",
     no_records_desc: "Pangkalan data kini kosong. Sila kemaskini data melalui Panel Admin atau cuba muat semula di bawah.",
     btn_fetch_initial: "Dapatkan Data Asal",
@@ -219,6 +239,10 @@ const translations = {
     lbl_percent_spend: "daripada jumlah perbelanjaan",
     lbl_standard_procurement: "Perolehan standard melalui proses tender terbuka.",
     lbl_verified_on: "Disahkan pada",
+    
+    // Vendor Detail
+    det_vendor_profile: "Profil Pembekal",
+    det_ministries_served: "Kementerian Dilayan",
 
     // Risk Score
     det_risk_score: "Skor Risiko Perolehan",
@@ -266,6 +290,14 @@ const translations = {
     // About
     abt_title: "Ketelusan Dalam Tindakan",
     abt_subtitle: "GovWatch MY adalah inisiatif bebas untuk memvisualisasikan, menjejak, dan menganalisis data perolehan kerajaan Malaysia.",
+
+    abt_value_headline: "Setiap Ringgit Dikira. Setiap Kontrak Dijejak.",
+    abt_value_desc: "Malaysia membelanjakan berbilion ringgit untuk perolehan setiap tahun. Kami menukar beribu-ribu kad data yang berselerak kepada pangkalan data yang boleh dicari supaya anda boleh melihat dengan tepat ke mana wang itu pergi. GovWatch memperkasakan rakyat, wartawan, dan penyelidik untuk memantau perbelanjaan kementerian, menjejak rundingan terus, dan menuntut kecekapan.",
+
+    abt_mission_title: "Misi Kami: Meningkatkan Ketelusan",
+    abt_mission_desc_1: "Sebagai pelajar Malaysia, kami menyedari bahawa ketelusan bukan sekadar masalah dasar, tetapi masalah kebolehcapaian data. Berjuta-juta ringgit dalam data perolehan wujud, tetapi ia terkunci di sebalik jadual yang tidak berstruktur dan jargon birokrasi.",
+    abt_mission_desc_2: "GovWatch merapatkan jurang antara Penglibatan Sivik dan Kejuruteraan Perisian. Kami bukan sekadar meminta ketelusan; kami membina alat untuk menguatkuasakannya. Dengan menukar data perbelanjaan mentah kepada visualisasi interaktif, kami memperkasakan pengundi, wartawan, dan pemimpin pelajar untuk memastikan institusi bertanggungjawab dengan matematik, bukan sekadar retorik.",
+
     abt_accountability: "Akauntabiliti",
     abt_accountability_desc: "Memastikan wang cukai dibelanjakan dengan cekap dengan memantau Rundingan Terus vs Tender Terbuka.",
     abt_opendata: "Data Terbuka",
@@ -273,9 +305,15 @@ const translations = {
     abt_accessibility: "Kebolehcapaian",
     abt_accessibility_desc: "Menjadikan data kewangan yang kompleks mudah difahami melalui papan pemuka dan carta interaktif.",
     abt_methodology: "Metodologi",
+    abt_methodology_text: "GovWatch mengagregat data dari portal kerajaan awam, khususnya sistem MyProcurement yang diuruskan oleh Kementerian Kewangan.",
     abt_similar: "Inisiatif Serupa",
     abt_disclaimer: "Penafian",
-    abt_not_official: "Bukan Laman Web Rasmi Kerajaan."
+    abt_not_official: "Bukan Laman Web Rasmi Kerajaan.",
+
+    // Footer Credits
+    ftr_developer: "Pembangun Utama & Pengasas",
+    ftr_role: "Pelajar & Pengasas",
+    ftr_built: "Dibina sebagai inisiatif bebas untuk memodenkan data sivik Malaysia."
   }
 };
 

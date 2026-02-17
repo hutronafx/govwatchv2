@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { Record as ProcurementRecord } from '../types';
 import { formatMoney } from '../utils';
-import { Store, Search, Filter } from 'lucide-react';
+import { Store, Search, Filter, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../i18n';
 
 interface VendorListProps {
   records: ProcurementRecord[];
+  onSelectVendor?: (name: string) => void;
 }
 
-export const VendorList: React.FC<VendorListProps> = ({ records }) => {
+export const VendorList: React.FC<VendorListProps> = ({ records, onSelectVendor }) => {
   const { t, language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -65,13 +66,18 @@ export const VendorList: React.FC<VendorListProps> = ({ records }) => {
                         <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider text-center">{t.ven_contracts_won}</th>
                         <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider text-center">{t.ven_ministries_served}</th>
                         <th className="px-6 py-4 font-bold text-gw-text uppercase text-xs tracking-wider text-right">{t.ven_total_value}</th>
+                        <th className="px-6 py-4"></th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gw-border">
                     {sortedVendors.map((v, i) => (
-                        <tr key={v.name} className="hover:bg-gw-bg/30 transition-colors">
+                        <tr 
+                            key={v.name} 
+                            onClick={() => onSelectVendor && onSelectVendor(v.name)}
+                            className="hover:bg-gw-bg/30 transition-colors cursor-pointer group"
+                        >
                             <td className="px-6 py-4">
-                                <div className="font-medium text-white">{v.name}</div>
+                                <div className="font-medium text-white group-hover:text-blue-400 transition-colors">{v.name}</div>
                                 <div className="text-xs text-gw-muted hidden sm:block">{t.ven_rank} #{i + 1}</div>
                             </td>
                             <td className="px-6 py-4 text-center">
@@ -81,11 +87,14 @@ export const VendorList: React.FC<VendorListProps> = ({ records }) => {
                             </td>
                             <td className="px-6 py-4 text-center text-gw-muted">{v.ministryCount}</td>
                             <td className="px-6 py-4 text-right font-bold text-gw-success font-mono">{formatMoney(v.value, language)}</td>
+                            <td className="px-6 py-4 text-center">
+                                <ChevronRight className="w-4 h-4 text-gw-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </td>
                         </tr>
                     ))}
                     {sortedVendors.length === 0 && (
                         <tr>
-                            <td colSpan={4} className="px-6 py-8 text-center text-gw-muted italic">
+                            <td colSpan={5} className="px-6 py-8 text-center text-gw-muted italic">
                                 {t.msg_no_vendors}
                             </td>
                         </tr>

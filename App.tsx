@@ -4,6 +4,7 @@ import { Dashboard } from './views/Dashboard';
 import { MinistryDetail } from './views/MinistryDetail';
 import { MinistryList } from './views/MinistryList';
 import { VendorList } from './views/VendorList';
+import { VendorDetail } from './views/VendorDetail';
 import { Upload } from './views/Upload';
 import { About } from './views/About';
 import { INITIAL_RECORDS } from './data';
@@ -107,6 +108,11 @@ function AppContent() {
     window.scrollTo(0, 0);
   };
 
+  const handleVendorClick = (vendorName: string) => {
+    setViewConfig({ view: 'vendor_detail', vendorName });
+    window.scrollTo(0, 0);
+  };
+
   const handleDataLoaded = (newRecords: Record[]) => {
     setRecords(newRecords);
     handleNavigate('dashboard');
@@ -119,6 +125,7 @@ function AppContent() {
           records={records} 
           isLoading={isLoading}
           onMinistryClick={handleMinistryClick} 
+          onVendorClick={handleVendorClick}
         />
       )}
       
@@ -130,6 +137,15 @@ function AppContent() {
         />
       )}
 
+      {viewConfig.view === 'vendor_detail' && viewConfig.vendorName && (
+        <VendorDetail 
+          vendorName={viewConfig.vendorName} 
+          records={records}
+          onBack={() => handleNavigate('vendor_list')}
+          onMinistryClick={handleMinistryClick}
+        />
+      )}
+
       {viewConfig.view === 'ministry_list' && (
         <MinistryList 
             records={records} 
@@ -138,7 +154,10 @@ function AppContent() {
       )}
 
       {viewConfig.view === 'vendor_list' && (
-        <VendorList records={records} />
+        <VendorList 
+            records={records} 
+            onSelectVendor={handleVendorClick}
+        />
       )}
 
       {viewConfig.view === 'upload' && (

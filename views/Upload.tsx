@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Upload as UploadIcon, FileJson, AlertTriangle, Lock, CheckCircle, Copy, Terminal, Server, Play, Loader2, Download, Image, Code } from 'lucide-react';
+import { Upload as UploadIcon, FileJson, AlertTriangle, Lock, CheckCircle, Copy, Terminal, Server, Play, Loader2, FileSpreadsheet, Code } from 'lucide-react';
 import { Record } from '../types';
 import { useLanguage } from '../i18n';
+import * as XLSX from 'xlsx';
 
 interface UploadProps {
   onDataLoaded: (data: Record[]) => void;
@@ -155,20 +156,94 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
   const handleDragLeave = () => { setIsDragging(false); };
   const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); const file = e.dataTransfer.files[0]; if (file) processFile(file); };
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) processFile(file); };
+  
   const processFile = (file: File) => {
-    if (!file.name.endsWith('.json')) { setStatus('error'); return; }
     setStatus('processing');
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+    const isJson = file.name.endsWith('.json');
+
+    if (!isExcel && !isJson) { 
+        setStatus('error'); 
+        alert("Please upload an Excel (.xlsx) or JSON file.");
+        return; 
+    }
+
     const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const rawData = JSON.parse(e.target?.result as string);
-        if (!Array.isArray(rawData)) throw new Error("Not an array");
-        await fetch('/api/update-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(rawData) });
-        setStatus('success');
-        setTimeout(() => { onDataLoaded(rawData); }, 1500);
-      } catch (err) { setStatus('error'); }
-    };
-    reader.readAsText(file);
+    
+    if (isExcel) {
+        reader.onload = async (e) => {
+            try {
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(sheet);
+                
+                // Map Excel Columns to Application Schema
+                const mappedData: Record[] = jsonData.map((row: any, index: number) => {
+                    // Excel Date Parsing
+                    let dateStr = new Date().toISOString().split('T')[0];
+                    if (row['Date']) {
+                        if (typeof row['Date'] === 'number') {
+                            // Handle Excel Serial Date
+                            const dateObj = new Date(Math.round((row['Date'] - 25569) * 86400 * 1000));
+                            dateStr = dateObj.toISOString().split('T')[0];
+                        } else {
+                            dateStr = String(row['Date']);
+                        }
+                    }
+
+                    // Price Parsing
+                    let amount = 0;
+                    if (row['Price']) {
+                        if (typeof row['Price'] === 'number') amount = row['Price'];
+                        else {
+                            const clean = String(row['Price']).replace(/[^0-9.]/g, '');
+                            amount = parseFloat(clean) || 0;
+                        }
+                    }
+
+                    return {
+                        id: index + 1,
+                        title: row['Title'] || row['Tajuk'] || '',
+                        tenderNo: row['Tender No.'] || row['No. Tender'] || '',
+                        category: row['Category'] || row['Kategori'] || 'General',
+                        ministry: row['Ministry'] || row['Kementerian'] || 'Unknown Ministry',
+                        vendor: row['Tenderer'] || row['Petender'] || 'Unknown Vendor',
+                        address: row['Address'] || '',
+                        date: dateStr,
+                        amount: amount,
+                        method: (row['Method'] || 'Open Tender'), // Default if not in excel
+                        crawledAt: new Date().toISOString()
+                    };
+                });
+
+                if (mappedData.length === 0) throw new Error("No valid rows found");
+
+                await fetch('/api/update-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(mappedData) });
+                setStatus('success');
+                setTimeout(() => { onDataLoaded(mappedData); }, 1500);
+
+            } catch (err) {
+                console.error(err);
+                setStatus('error');
+                alert("Failed to parse Excel file. Ensure columns match: Title, Tender No., Ministry, Tenderer, Price, Date");
+            }
+        };
+        reader.readAsBinaryString(file);
+    } else {
+        // JSON Handling
+        reader.onload = async (e) => {
+            try {
+                const rawData = JSON.parse(e.target?.result as string);
+                if (!Array.isArray(rawData)) throw new Error("Not an array");
+                await fetch('/api/update-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(rawData) });
+                setStatus('success');
+                setTimeout(() => { onDataLoaded(rawData); }, 1500);
+            } catch (err) { setStatus('error'); }
+        };
+        reader.readAsText(file);
+    }
   };
 
   if (!isAuthenticated) {
@@ -199,82 +274,101 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* AUTO UPDATE */}
-        <div className="bg-gw-card border border-gw-border rounded-xl p-6 flex flex-col relative overflow-hidden">
+        {/* EXCEL UPLOAD (Main) */}
+        <div className="bg-gw-card border border-gw-border rounded-xl p-6 flex flex-col relative overflow-hidden lg:col-span-2">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <Server className="w-5 h-5 text-gw-success" /> {t.admin_server_scraper}
+                <FileSpreadsheet className="w-5 h-5 text-green-400" /> Excel Data Upload
             </h3>
             
-            <div className="space-y-3">
-                <p className="text-xs text-gw-muted">{t.admin_server_desc}</p>
-                {scrapeStatus === 'idle' && (
-                    <button onClick={handleAutoScrape} className="w-full py-4 bg-gw-success hover:bg-gw-success/90 text-gw-bg font-bold rounded-lg transition-all flex items-center justify-center gap-2">
-                        <Play className="w-5 h-5" /> {t.admin_start_scrape}
-                    </button>
-                )}
-                {scrapeStatus === 'running' && (
-                    <div className="w-full py-4 bg-gw-card border border-gw-border rounded-lg flex flex-col items-center justify-center gap-2 text-gw-success">
-                        <div className="flex items-center gap-2"><Loader2 className="w-5 h-5 animate-spin" /><span>{t.admin_running}</span></div>
-                        <span className="text-xs text-gw-muted">{scrapeMsg}</span>
-                    </div>
-                )}
-                {(scrapeStatus === 'error' || scrapeStatus === 'warning') && (
-                    <div className="mt-2 p-3 bg-gw-danger/10 border border-gw-danger/30 rounded text-center">
-                        <div className="text-gw-danger font-bold text-sm mb-2 flex items-center justify-center gap-2">
-                            <AlertTriangle className="w-4 h-4" /> {t.admin_issue}
-                        </div>
-                        <button onClick={fetchLog} className="text-xs underline text-gw-text hover:text-white flex items-center justify-center gap-1 mx-auto">
-                           {isLoadingLog ? <Loader2 className="w-3 h-3 animate-spin"/> : <Terminal className="w-3 h-3" />}
-                           {isLogOpen ? t.admin_refresh_log : t.admin_view_log}
-                        </button>
-                    </div>
-                )}
-                {isLogOpen && (
-                    <textarea readOnly value={logContent} className="w-full h-32 bg-black text-green-400 font-mono text-[10px] p-2 rounded border border-gw-border resize-none" />
-                )}
-            </div>
-        </div>
-
-        {/* BROWSER SCRIPT */}
-        <div className="bg-gw-card border border-gw-border rounded-xl p-6 flex flex-col">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <Code className="w-5 h-5 text-blue-400" /> {t.admin_browser_script}
-            </h3>
-            <p className="text-xs text-gw-muted mb-4">
-                {t.admin_script_desc}
-            </p>
-            <div className="flex-1 bg-black rounded border border-gw-border p-3 relative group">
-                <code className="text-gw-success text-[10px] font-mono break-all line-clamp-[10]">
-                    {BROWSER_SCRIPT}
-                </code>
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                <button 
-                    onClick={copyScript}
-                    className="absolute bottom-2 right-2 bg-gw-bg border border-gw-border hover:bg-gw-card text-white text-xs px-3 py-1 rounded flex items-center gap-2 transition-colors"
-                >
-                    <Copy className="w-3 h-3" /> {t.admin_copy_code}
-                </button>
-            </div>
-        </div>
-
-        {/* MANUAL UPLOAD */}
-        <div className="bg-gw-bg/50 p-6 rounded-xl border border-gw-border flex flex-col">
-             <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-                <FileJson className="w-5 h-5 text-orange-400" /> {t.admin_json_upload}
-             </h3>
-             <div className={`bg-gw-card border-2 border-dashed rounded-xl p-4 text-center transition-all flex-1 flex flex-col justify-center ${isDragging ? 'border-gw-success' : status === 'error' ? 'border-gw-danger' : 'border-gw-border'}`} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+            <div className="flex-1 flex flex-col justify-center items-center border-2 border-dashed border-gw-border hover:border-gw-success transition-all rounded-lg p-8 bg-gw-bg/50"
+                 onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+                
                 {status === 'idle' && (
-                <>
-                    <UploadIcon className="w-8 h-8 text-gw-muted mx-auto mb-2" />
-                    <p className="text-gw-muted text-xs mb-2">{t.admin_drop_file}</p>
-                    <label className="text-xs text-blue-400 cursor-pointer hover:underline">
-                        {t.admin_browse_files} <input type="file" className="hidden" accept=".json" onChange={handleFileSelect} />
-                    </label>
-                </>
+                    <>
+                        <UploadIcon className="w-12 h-12 text-gw-muted mb-4" />
+                        <h4 className="text-white font-bold mb-2">Drag & Drop your Excel file here</h4>
+                        <p className="text-gw-muted text-sm mb-6 text-center max-w-md">
+                            Supports .xlsx files with columns: No, Title, Tender No, Category, Ministry, Tenderer, Address, Date, Price.
+                        </p>
+                        <label className="px-6 py-3 bg-gw-success text-gw-bg font-bold rounded-lg cursor-pointer hover:bg-gw-success/90 transition-colors">
+                            Select Spreadsheet
+                            <input type="file" className="hidden" accept=".xlsx,.xls,.json" onChange={handleFileSelect} />
+                        </label>
+                    </>
                 )}
-                {status === 'processing' && <Loader2 className="w-8 h-8 text-gw-success animate-spin mx-auto" />}
-                {status === 'success' && <CheckCircle className="w-8 h-8 text-gw-success mx-auto" />}
-                {status === 'error' && <div className="text-gw-danger text-xs">{t.admin_invalid_file}</div>}
+                {status === 'processing' && (
+                    <div className="text-center">
+                        <Loader2 className="w-12 h-12 text-gw-success animate-spin mx-auto mb-4" />
+                        <p className="text-white">Processing Data...</p>
+                        <p className="text-gw-muted text-xs">Parsing spreadsheet and standardizing fields.</p>
+                    </div>
+                )}
+                {status === 'success' && (
+                    <div className="text-center">
+                        <CheckCircle className="w-12 h-12 text-gw-success mx-auto mb-4" />
+                        <p className="text-white font-bold">Upload Complete</p>
+                        <p className="text-gw-muted text-sm">Redirecting to dashboard...</p>
+                    </div>
+                )}
+                {status === 'error' && (
+                    <div className="text-center">
+                        <AlertTriangle className="w-12 h-12 text-gw-danger mx-auto mb-4" />
+                        <p className="text-gw-danger font-bold">Upload Failed</p>
+                        <p className="text-gw-muted text-sm mb-4">Please ensure the file format is correct.</p>
+                        <button onClick={() => setStatus('idle')} className="text-blue-400 text-sm hover:underline">Try Again</button>
+                    </div>
+                )}
+            </div>
+        </div>
+
+        {/* SIDEBAR TOOLS */}
+        <div className="space-y-6">
+            {/* AUTO UPDATE */}
+            <div className="bg-gw-card border border-gw-border rounded-xl p-6 flex flex-col relative overflow-hidden">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <Server className="w-5 h-5 text-gw-success" /> {t.admin_server_scraper}
+                </h3>
+                
+                <div className="space-y-3">
+                    <p className="text-xs text-gw-muted">{t.admin_server_desc}</p>
+                    {scrapeStatus === 'idle' && (
+                        <button onClick={handleAutoScrape} className="w-full py-4 bg-gw-success hover:bg-gw-success/90 text-gw-bg font-bold rounded-lg transition-all flex items-center justify-center gap-2">
+                            <Play className="w-5 h-5" /> {t.admin_start_scrape}
+                        </button>
+                    )}
+                    {scrapeStatus === 'running' && (
+                        <div className="w-full py-4 bg-gw-card border border-gw-border rounded-lg flex flex-col items-center justify-center gap-2 text-gw-success">
+                            <div className="flex items-center gap-2"><Loader2 className="w-5 h-5 animate-spin" /><span>{t.admin_running}</span></div>
+                            <span className="text-xs text-gw-muted">{scrapeMsg}</span>
+                        </div>
+                    )}
+                    {(scrapeStatus === 'error' || scrapeStatus === 'warning') && (
+                        <div className="mt-2 p-3 bg-gw-danger/10 border border-gw-danger/30 rounded text-center">
+                            <div className="text-gw-danger font-bold text-sm mb-2 flex items-center justify-center gap-2">
+                                <AlertTriangle className="w-4 h-4" /> {t.admin_issue}
+                            </div>
+                            <button onClick={fetchLog} className="text-xs underline text-gw-text hover:text-white flex items-center justify-center gap-1 mx-auto">
+                            {isLoadingLog ? <Loader2 className="w-3 h-3 animate-spin"/> : <Terminal className="w-3 h-3" />}
+                            {isLogOpen ? t.admin_refresh_log : t.admin_view_log}
+                            </button>
+                        </div>
+                    )}
+                    {isLogOpen && (
+                        <textarea readOnly value={logContent} className="w-full h-32 bg-black text-green-400 font-mono text-[10px] p-2 rounded border border-gw-border resize-none" />
+                    )}
+                </div>
+            </div>
+
+            {/* JSON FALLBACK */}
+            <div className="bg-gw-card border border-gw-border rounded-xl p-6">
+                 <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-2">
+                    <FileJson className="w-4 h-4 text-orange-400" /> Legacy JSON
+                 </h3>
+                 <p className="text-xs text-gw-muted mb-2">For developers or backup restoration.</p>
+                 <label className="block w-full text-center py-2 border border-gw-border rounded text-xs text-gw-text cursor-pointer hover:bg-gw-bg">
+                    Upload .json
+                    <input type="file" className="hidden" accept=".json" onChange={handleFileSelect} />
+                 </label>
             </div>
         </div>
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Database, Search, ExternalLink } from 'lucide-react';
+import { ShieldCheck, Database, Search, ExternalLink, Lightbulb, Users } from 'lucide-react';
 import { useLanguage } from '../i18n';
 
 export const About: React.FC = () => {
@@ -12,6 +12,20 @@ export const About: React.FC = () => {
         <h1 className="text-4xl font-bold text-white">{t.abt_title}</h1>
         <p className="text-xl text-gw-muted max-w-2xl mx-auto">
             {t.abt_subtitle}
+        </p>
+      </div>
+
+      {/* NEW: Value Proposition */}
+      <div className="bg-gw-card border border-gw-border rounded-lg p-8 text-center shadow-lg relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-gw-success to-blue-500"></div>
+        <div className="flex justify-center mb-4">
+             <div className="p-3 bg-gw-bg rounded-full border border-gw-border">
+                <Lightbulb className="w-8 h-8 text-gw-success" />
+             </div>
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-4">{t.abt_value_headline}</h2>
+        <p className="text-gw-text leading-relaxed max-w-3xl mx-auto">
+            {t.abt_value_desc}
         </p>
       </div>
 
@@ -40,13 +54,25 @@ export const About: React.FC = () => {
         </div>
       </div>
 
+      {/* NEW: Mission Statement */}
+      <div className="bg-gw-card border border-gw-border rounded-lg p-8">
+        <div className="flex items-center gap-3 mb-6">
+            <Users className="w-6 h-6 text-gw-muted" />
+            <h2 className="text-2xl font-bold text-white">{t.abt_mission_title}</h2>
+        </div>
+        <div className="space-y-4 text-gw-text leading-relaxed">
+            <p>{t.abt_mission_desc_1}</p>
+            <p>{t.abt_mission_desc_2}</p>
+        </div>
+      </div>
+
       {/* Content Sections */}
       <div className="bg-gw-card border border-gw-border rounded-lg p-8 space-y-8">
         
         <section>
             <h2 className="text-2xl font-bold text-white mb-4">{t.abt_methodology}</h2>
             <p className="text-gw-text leading-relaxed mb-4">
-                GovWatch aggregates data from public government portals, specifically the MyProcurement and MyGPIS systems managed by the Ministry of Finance. 
+                {t.abt_methodology_text}
             </p>
             <ul className="list-disc list-inside space-y-2 text-gw-muted ml-4">
                 <li>Data is collected via automated scripts and manual submissions.</li>

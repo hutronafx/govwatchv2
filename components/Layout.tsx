@@ -82,8 +82,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeView, onNavigate
       </main>
       <footer className="border-t border-gw-border py-8 mt-8 bg-gw-card/30">
         <div className="max-w-7xl mx-auto px-4 text-center">
+            {/* Developer Credit */}
+            <div className="mb-6 pb-6 border-b border-gw-border/50">
+               <p className="text-white font-bold uppercase tracking-wider text-xs mb-1 opacity-80">{t.ftr_developer}</p>
+               <p className="text-gw-success font-bold text-lg mb-1">Ronan Ooi</p>
+               <p className="text-sm text-gw-muted">
+                 {t.ftr_role} <a href="https://www.ipohmun.org" target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 underline transition-colors">IpohMUN</a>
+               </p>
+               <p className="text-xs text-gw-muted mt-2 opacity-70 italic font-mono">{t.ftr_built}</p>
+            </div>
+
             <p className="text-sm text-gw-text font-semibold">GovWatch MY</p>
-            <p className="text-xs text-gw-muted mt-2">&copy; {new Date().getFullYear()} Public Procurement Monitoring Initiative.</p>
+            <p className="text-xs text-gw-muted mt-2">
+                &copy; {new Date().getFullYear()} Public Procurement Monitoring Initiative.
+            </p>
         </div>
       </footer>
     </div>
