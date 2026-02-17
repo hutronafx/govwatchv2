@@ -10,15 +10,11 @@ import { About } from './views/About';
 import { ViewConfig, Record } from './types';
 import { LanguageProvider } from './i18n';
 import { AlertTriangle, Database, Loader2 } from 'lucide-react';
-import { INITIAL_RECORDS } from './data';
 
 // --- CONFIGURATION ---
-// The app will try these URLs in order. 
-// If one fails, it moves to the next.
+// STRICT MODE: Only use the NPOINT API.
 const DATA_SOURCES = [
-    { name: "Live Database (npoint)", url: "https://api.npoint.io/cdb0a3341315d9e62968" },
-    { name: "Local File", url: "/data.json" },
-    { name: "Demo Data", url: "DEMO" }
+    { name: "Live Database (npoint)", url: "https://api.npoint.io/cdb0a3341315d9e62968" }
 ];
 
 function AppContent() {
@@ -137,13 +133,6 @@ function AppContent() {
 
     for (const source of DATA_SOURCES) {
         try {
-            if (source.url === "DEMO") {
-                console.log("[GovWatch] Loading Demo Data as fallback.");
-                loadedData = INITIAL_RECORDS;
-                loadedSource = "Demo Data (Offline)";
-                break;
-            }
-
             loadedData = await tryFetch(source.url, source.name);
             loadedSource = source.name;
             if (loadedData.length > 0) break; // Success!
@@ -159,7 +148,7 @@ function AppContent() {
         setDataSource(loadedSource);
         setIsConnected(true);
     } else {
-        setErrorMsg("All data sources failed. Please check your internet connection.");
+        setErrorMsg("Failed to connect to data source. Please check the URL.");
     }
     
     setIsLoading(false);
