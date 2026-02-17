@@ -15,7 +15,7 @@ export interface Record {
   crawledAt?: string; // ISO Date string of when we fetched this
 }
 
-export type ViewState = 'dashboard' | 'upload' | 'ministry_detail' | 'vendor_detail' | 'ministry_list' | 'vendor_list' | 'about';
+export type ViewState = 'dashboard' | 'ministry_detail' | 'vendor_detail' | 'ministry_list' | 'vendor_list' | 'about';
 
 export interface ViewConfig {
   view: ViewState;

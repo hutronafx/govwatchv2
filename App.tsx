@@ -5,26 +5,23 @@ import { MinistryDetail } from './views/MinistryDetail';
 import { MinistryList } from './views/MinistryList';
 import { VendorList } from './views/VendorList';
 import { VendorDetail } from './views/VendorDetail';
-import { Upload } from './views/Upload';
 import { About } from './views/About';
 import { ViewConfig, Record } from './types';
 import { LanguageProvider } from './i18n';
-import { AlertTriangle, Database, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { cleanMinistryName } from './utils';
 
 // --- CONFIGURATION ---
-// UPDATED: Points to the GitHub CSV raw file as the primary source.
 const DATA_SOURCES = [
     { 
         name: "GitHub Repository (CSV)", 
-        // We try the standard raw format first, then the specific one provided just in case
         url: "https://raw.githubusercontent.com/hutronafx/govwatchv2/main/public/Myprocurementdata%20complete.csv"
     },
     {
         name: "GitHub (Alt Link)",
         url: "https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/public/Myprocurementdata%20complete.csv"
-    },
-    { name: "Local Server Data", url: "/data.json" }
+    }
 ];
 
 function AppContent() {
@@ -32,8 +29,6 @@ function AppContent() {
   const [records, setRecords] = useState<Record[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [dataSource, setDataSource] = useState<string>('');
 
   // Helper to process raw JSON/CSV objects into our Record type
   const processData = (jsonData: any[], sourceName: string) => {
@@ -55,7 +50,10 @@ function AppContent() {
             return undefined;
         };
 
-        const ministry = getVal(['Ministry', 'Kementerian', 'Agency', 'Agensi']) || "Unknown Ministry";
+        const rawMinistry = getVal(['Ministry', 'Kementerian', 'Agency', 'Agensi']) || "Unknown Ministry";
+        // Normalize ministry name immediately to ensure consistency (merges duplicates like 'Kementerian Pendidikan Malaysia' and 'Kementerian Pendidikan')
+        const ministry = cleanMinistryName(String(rawMinistry));
+        
         const vendor = getVal(['Vendor', 'Petender', 'Tenderer', 'Nama Syarikat', 'Company', 'Syarikat']) || "Unknown Vendor";
         const title = getVal(['Title', 'Tajuk', 'Description', 'Tajuk Projek', 'Project Title']) || "";
         const method = getVal(['Method', 'Kaedah', 'Procurement Method', 'Mode']) || "Open Tender";
@@ -127,9 +125,7 @@ function AppContent() {
   const tryFetch = async (url: string, sourceName: string) => {
       console.log(`[GovWatch] Attempting to fetch from: ${sourceName} (${url})`);
       
-      // We append a timestamp to avoid stale cache for JSON, but for GitHub raw sometimes it's better to leave it clean
-      // However, to ensure updates are seen, a cache buster is good.
-      const fetchUrl = url.includes('github') ? url : (url + (url.includes('?') ? '&' : '?') + `t=${new Date().getTime()}`);
+      const fetchUrl = url; 
       
       const res = await fetch(fetchUrl);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -163,7 +159,6 @@ function AppContent() {
                   const cleanText = textData.substring(firstBracket, lastBracket + 1);
                   jsonData = JSON.parse(cleanText);
               } else {
-                   // One last attempt: maybe it was CSV but didn't look like it?
                    try {
                        const workbook = XLSX.read(textData, { type: 'string' });
                        jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
@@ -181,15 +176,12 @@ function AppContent() {
   const fetchData = async () => {
     setIsLoading(true);
     setErrorMsg(null);
-    setIsConnected(false);
     
     let loadedData: Record[] = [];
-    let loadedSource = "";
 
     for (const source of DATA_SOURCES) {
         try {
             loadedData = await tryFetch(source.url, source.name);
-            loadedSource = source.name;
             if (loadedData.length > 0) break; // Success!
 
         } catch (e: any) {
@@ -199,8 +191,6 @@ function AppContent() {
 
     if (loadedData.length > 0) {
         setRecords(loadedData);
-        setDataSource(loadedSource);
-        setIsConnected(true);
     } else {
         setErrorMsg("Could not load data from GitHub or local server.");
     }
@@ -210,15 +200,6 @@ function AppContent() {
 
   useEffect(() => {
     fetchData();
-
-    // Removed the automatic hash check for admin panel to keep it simpler for users
-    const checkHash = () => {
-      if (window.location.hash === '#secret-admin-panel') {
-        setViewConfig({ view: 'upload' });
-      }
-    };
-    window.addEventListener('hashchange', checkHash);
-    return () => window.removeEventListener('hashchange', checkHash);
   }, []);
 
   const handleNavigate = (view: any) => {
@@ -234,14 +215,6 @@ function AppContent() {
   const handleVendorClick = (vendorName: string) => {
     setViewConfig({ view: 'vendor_detail', vendorName });
     window.scrollTo(0, 0);
-  };
-
-  const handleDataLoaded = (newRecords: Record[]) => {
-    setRecords(newRecords);
-    handleNavigate('dashboard');
-    setIsConnected(true);
-    setDataSource("Manual Upload");
-    setErrorMsg(null);
   };
 
   return (
@@ -312,10 +285,6 @@ function AppContent() {
                 records={records} 
                 onSelectVendor={handleVendorClick}
             />
-          )}
-
-          {viewConfig.view === 'upload' && (
-            <Upload onDataLoaded={handleDataLoaded} />
           )}
           
           {viewConfig.view === 'about' && (

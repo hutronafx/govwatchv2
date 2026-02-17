@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Record as ProcurementRecord } from '../types';
 import { StatCard } from '../components/StatCard';
 import { formatMoney, translateMinistry, downloadCSV, getMinistryLabel } from '../utils';
-import { ArrowUpRight, Search, FileText, RefreshCw, Filter, ArrowUpDown, Download, Clock, Briefcase, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { ArrowUpRight, Search, FileText, Filter, ArrowUpDown, Download, Clock, Briefcase, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import { useLanguage } from '../i18n';
 
@@ -36,10 +36,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
-
-  // Refresh / Scrape State
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshFeedback, setRefreshFeedback] = useState<{ type: 'success' | 'error' | 'info'; msg: string } | null>(null);
 
   // Reset page when filters change
   useEffect(() => {
@@ -91,42 +87,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
   const paginatedRecords = filteredRecords.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // --- REFRESH HANDLER ---
-  const handleRefreshData = async () => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
-    setRefreshFeedback({ type: 'info', msg: t.loading_scraper });
-
-    try {
-      const res = await fetch('/api/trigger-scrape', { method: 'POST' });
-      const data = await res.json();
-
-      if (data.success) {
-        setRefreshFeedback({ type: 'success', msg: t.scraper_success.replace('{{count}}', data.count) });
-        // Reload page to fetch the new data.json from disk
-        setTimeout(() => window.location.reload(), 2000);
-      } else {
-         setRefreshFeedback({ type: 'error', msg: data.message || t.scraper_fail });
-         setIsRefreshing(false);
-      }
-    } catch (e) {
-      setRefreshFeedback({ type: 'error', msg: t.scraper_network_error });
-      setIsRefreshing(false);
-    }
-  };
-
   // --- CONDITIONAL RETURNS (AFTER ALL HOOKS) ---
   if (isLoading) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn">
-            <RefreshCw className="w-10 h-10 text-gw-success animate-spin mb-4" />
             <h2 className="text-xl font-bold text-white">{t.loading_dashboard}</h2>
         </div>
     );
   }
 
   // EMPTY STATE (Only if really 0 records)
-  if (records.length === 0 && !isRefreshing) {
+  if (records.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn p-4">
         <div className="bg-gw-card border border-gw-border rounded-full p-6 mb-6">
@@ -136,13 +107,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
         <p className="text-gw-muted max-w-md mb-8">
             {t.no_records_desc}
         </p>
-        <button
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-2 px-6 py-3 bg-gw-success text-gw-bg rounded-lg font-bold hover:bg-gw-success/90 transition-all"
-        >
-            <RefreshCw className="w-5 h-5" />
-            {t.btn_refresh}
-        </button>
       </div>
     );
   }
@@ -232,31 +196,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
         </div>
 
         <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
-            {/* Feedback Message */}
-            {refreshFeedback && (
-                <div className={`text-xs px-3 py-1.5 rounded-full border font-medium ${
-                    refreshFeedback.type === 'error' ? 'bg-gw-danger/10 text-gw-danger border-gw-danger/20' :
-                    refreshFeedback.type === 'success' ? 'bg-gw-success/10 text-gw-success border-gw-success/20' :
-                    'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                }`}>
-                    {refreshFeedback.msg}
-                </div>
-            )}
-
-            {/* Refresh Button */}
-            <button 
-                onClick={handleRefreshData}
-                disabled={isRefreshing}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all border shadow-sm ${
-                    isRefreshing 
-                    ? 'bg-gw-card text-gw-muted border-gw-border cursor-not-allowed opacity-70' 
-                    : 'bg-gw-success text-gw-bg hover:bg-gw-success/90 border-gw-success'
-                }`}
-            >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                {isRefreshing ? t.btn_syncing : t.btn_refresh}
-            </button>
-
             {/* Last Updated Badge */}
              <div className="flex items-center gap-2 text-xs text-gw-muted bg-gw-card px-3 py-2 rounded-lg border border-gw-border">
                 <Clock className="w-3 h-3" />
