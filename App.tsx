@@ -15,28 +15,41 @@ function AppContent() {
   const [viewConfig, setViewConfig] = useState<ViewConfig>({ view: 'dashboard' });
   const [records, setRecords] = useState<Record[]>(INITIAL_RECORDS);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Auto-fetch data on startup
   const fetchData = async () => {
+    setIsLoading(true);
     try {
-      // Priority: Check external data source provided by user
-      const EXTERNAL_DATA_URL = 'https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/localization.json?token=GHSAT0AAAAAADVXI5UU3J63OXEGJ7HZ7URW2MUUBEA';
+      // We try multiple potential URLs because the user might have named the file differently
+      // or provided a link to the wrong file type (localization vs data).
+      const REPO_BASE = 'https://raw.githubusercontent.com/hutronafx/govwatchv2/main';
+      const URLS_TO_TRY = [
+        `${REPO_BASE}/localization.json`,    // User provided link
+        `${REPO_BASE}/govwatch_data.json`,   // Standard scraper output name
+        `${REPO_BASE}/data.json`,            // Generic name
+        '/data.json'                         // Local fallback
+      ];
       
       let rawData = null;
-      try {
-          const res = await fetch(EXTERNAL_DATA_URL);
-          if (res.ok) {
-              rawData = await res.json();
-          }
-      } catch (e) {
-          console.warn("External data fetch failed, falling back to local.");
-      }
+      let successUrl = '';
 
-      // Fallback: Local data.json
-      if (!rawData) {
-        const response = await fetch('/data.json');
-        if (response.ok) {
-            rawData = await response.json();
+      for (const url of URLS_TO_TRY) {
+        try {
+            console.log(`Attempting to fetch data from: ${url}`);
+            const res = await fetch(url);
+            if (res.ok) {
+                const text = await res.text();
+                // Basic validation to check if it looks like our data (array) and not HTML/404
+                if (text.trim().startsWith('[') || text.includes('__EMPTY')) {
+                    rawData = JSON.parse(text);
+                    successUrl = url;
+                    console.log(`Success fetching from ${url}`);
+                    break;
+                }
+            }
+        } catch (e) {
+            console.warn(`Failed to fetch ${url}`, e);
         }
       }
       
@@ -45,8 +58,11 @@ function AppContent() {
         const cleanData: Record[] = [];
         if (Array.isArray(rawData)) {
              rawData.forEach((item: any, index: number) => {
-                // 1. Skip Header Rows
+                // 1. Skip Header Rows or non-data files (like translation files)
                 if (item['__EMPTY'] === 'TAJUK SEBUT HARGA' || item['__EMPTY_3'] === 'KEMENTERIAN') return;
+                
+                // If it's a localization file (key/value pairs), it won't have the fields we need. Skip it.
+                if (item.nav_dashboard || item.kpi_total_value) return; 
 
                 // 2. Map fields
                 const ministry = item.ministry || item['__EMPTY_3'] || "Unknown Ministry";
@@ -73,7 +89,8 @@ function AppContent() {
                 const category = item.category || item['__EMPTY_2'] || "General";
                 const method = item.method || "Open Tender";
 
-                if (ministry !== "Unknown Ministry" || amount > 0) {
+                // Validation: Must have at least a Ministry or an Amount to be valid
+                if ((ministry !== "Unknown Ministry" || amount > 0) && ministry !== "Ministry") {
                     cleanData.push({
                         id: index + 1,
                         ministry: String(ministry).trim(),
@@ -82,7 +99,9 @@ function AppContent() {
                         method: String(method).trim(),
                         category: String(category).trim(),
                         date: String(date).trim(),
-                        reason: item.reason || null
+                        reason: item.reason || null,
+                        sourceUrl: item.sourceUrl,
+                        crawledAt: item.crawledAt
                     });
                 }
              });
@@ -90,10 +109,15 @@ function AppContent() {
 
         if (cleanData.length > 0) {
           setRecords(cleanData);
+        } else {
+            console.warn("Data file loaded but contained 0 valid records.");
         }
+      } else {
+          setFetchError("Could not load data from any source.");
       }
     } catch (error) {
-      console.warn('Network error checking for data:', error);
+      console.warn('Critical error during data fetch:', error);
+      setFetchError("Critical application error.");
     } finally {
       setIsLoading(false);
     }
