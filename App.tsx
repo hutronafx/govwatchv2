@@ -7,26 +7,32 @@ import { VendorList } from './views/VendorList';
 import { VendorDetail } from './views/VendorDetail';
 import { Upload } from './views/Upload';
 import { About } from './views/About';
-import { INITIAL_RECORDS } from './data';
 import { ViewConfig, Record } from './types';
 import { LanguageProvider } from './i18n';
-import { AlertTriangle, Database, Loader2 } from 'lucide-react';
+import { AlertTriangle, Database, Loader2, RefreshCw } from 'lucide-react';
 import * as XLSX from 'xlsx';
+
+// We do not import INITIAL_RECORDS to ensure we don't accidentally use them.
+// The app will be empty if the fetch fails, proving the data source.
 
 function AppContent() {
   const [viewConfig, setViewConfig] = useState<ViewConfig>({ view: 'dashboard' });
   const [records, setRecords] = useState<Record[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [dataMode, setDataMode] = useState<'live' | 'demo' | 'error'>('demo');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
 
   // Auto-fetch data on startup
   const fetchData = async () => {
     setIsLoading(true);
     setErrorMsg(null);
+    setIsConnected(false);
+    
     try {
       // Direct link to the raw Excel file on GitHub
-      const EXCEL_URL = 'https://raw.githubusercontent.com/hutronafx/govwatchv2/main/Myprocurementdata%20complete.xlsx';
+      // Converted blob link to raw link: https://raw.githubusercontent.com/hutronafx/govwatchv2/main/Myprocurementdata%20complete.xlsx
+      // Added timestamp to prevent caching issues since repo status changed from private to public
+      const EXCEL_URL = `https://raw.githubusercontent.com/hutronafx/govwatchv2/main/Myprocurementdata%20complete.xlsx?t=${new Date().getTime()}`;
       
       console.log(`[GovWatch] Fetching Database: ${EXCEL_URL}`);
       
@@ -108,21 +114,20 @@ function AppContent() {
         if (cleanData.length > 0) {
           console.log(`[GovWatch] Loaded ${cleanData.length} valid records from Excel.`);
           setRecords(cleanData);
-          setDataMode('live');
+          setIsConnected(true);
         } else {
             console.warn("[GovWatch] Excel parsed but 0 valid records found.");
             setErrorMsg("Connected to GitHub, but found 0 valid records in the spreadsheet. Please check column headers.");
-            setRecords(INITIAL_RECORDS); // Fallback to demo data so app isn't empty, but warn user
-            setDataMode('demo');
+            setRecords([]); // Explicitly empty
         }
       } else {
+          // Response not OK (e.g. 404, 403)
           throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
       }
     } catch (error: any) {
       console.error('[GovWatch] Error during data fetch:', error);
-      setErrorMsg(`Could not load data from GitHub. ${error.message}`);
-      setRecords(INITIAL_RECORDS); // Fallback to demo data
-      setDataMode('error');
+      setErrorMsg(`Could not load data from GitHub. ${error.message}. Ensure the repository is Public.`);
+      setRecords([]); // Explicitly empty
     } finally {
       setIsLoading(false);
     }
@@ -160,81 +165,95 @@ function AppContent() {
   const handleDataLoaded = (newRecords: Record[]) => {
     setRecords(newRecords);
     handleNavigate('dashboard');
-    setDataMode('local');
+    setIsConnected(true);
     setErrorMsg(null);
   };
 
   return (
     <Layout activeView={viewConfig.view} onNavigate={handleNavigate}>
       {/* Data Status Banner */}
-      {dataMode === 'error' && !isLoading && (
-          <div className="bg-gw-danger/10 border-b border-gw-danger/20 px-4 py-2 text-center text-xs text-gw-danger flex items-center justify-center gap-2">
-              <AlertTriangle className="w-3 h-3" />
-              <span><strong>Connection Failed:</strong> {errorMsg} (Showing Demo Data)</span>
-              <button onClick={() => fetchData()} className="underline hover:text-white ml-2">Retry</button>
+      {errorMsg && !isLoading && (
+          <div className="bg-gw-danger/10 border-b border-gw-danger/20 px-4 py-4 text-center text-sm text-gw-danger flex flex-col md:flex-row items-center justify-center gap-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                <span><strong>Connection Failed:</strong> {errorMsg}</span>
+              </div>
+              <button 
+                onClick={() => fetchData()} 
+                className="px-4 py-1 bg-gw-danger text-gw-bg font-bold rounded hover:bg-gw-danger/80 transition-colors"
+              >
+                Retry Connection
+              </button>
           </div>
       )}
 
-      {dataMode === 'demo' && !isLoading && !errorMsg && (
-          <div className="bg-blue-500/10 border-b border-blue-500/20 px-4 py-2 text-center text-xs text-blue-300 flex items-center justify-center gap-2">
-              <AlertTriangle className="w-3 h-3" />
-              <span>Viewing <strong>Demo Data</strong>. Excel file empty or invalid format.</span>
-          </div>
-      )}
-      
-      {dataMode === 'live' && !isLoading && (
+      {isConnected && !isLoading && (
           <div className="bg-gw-success/10 border-b border-gw-success/20 px-4 py-1 text-center text-[10px] text-gw-success flex items-center justify-center gap-2">
               <Database className="w-3 h-3" />
               <span>Connected to Live GitHub Database: <strong>Myprocurementdata complete.xlsx</strong></span>
           </div>
       )}
 
-      {viewConfig.view === 'dashboard' && (
-        <Dashboard 
-          records={records} 
-          isLoading={isLoading}
-          onMinistryClick={handleMinistryClick} 
-          onVendorClick={handleVendorClick}
-        />
-      )}
-      
-      {viewConfig.view === 'ministry_detail' && viewConfig.ministryName && (
-        <MinistryDetail 
-          ministryName={viewConfig.ministryName} 
-          records={records}
-          onBack={() => handleNavigate('ministry_list')}
-        />
+      {/* Loading State */}
+      {isLoading && (
+         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn">
+            <Loader2 className="w-10 h-10 text-gw-success animate-spin mb-4" />
+            <h2 className="text-xl font-bold text-white">Connecting to GitHub...</h2>
+            <p className="text-gw-muted mt-2 text-sm">Fetching Myprocurementdata complete.xlsx</p>
+         </div>
       )}
 
-      {viewConfig.view === 'vendor_detail' && viewConfig.vendorName && (
-        <VendorDetail 
-          vendorName={viewConfig.vendorName} 
-          records={records}
-          onBack={() => handleNavigate('vendor_list')}
-          onMinistryClick={handleMinistryClick}
-        />
-      )}
+      {/* Content (Only show if not loading) */}
+      {!isLoading && (
+        <>
+          {viewConfig.view === 'dashboard' && (
+            <Dashboard 
+              records={records} 
+              isLoading={isLoading}
+              onMinistryClick={handleMinistryClick} 
+              onVendorClick={handleVendorClick}
+            />
+          )}
+          
+          {viewConfig.view === 'ministry_detail' && viewConfig.ministryName && (
+            <MinistryDetail 
+              ministryName={viewConfig.ministryName} 
+              records={records}
+              onBack={() => handleNavigate('ministry_list')}
+            />
+          )}
 
-      {viewConfig.view === 'ministry_list' && (
-        <MinistryList 
-            records={records} 
-            onSelectMinistry={handleMinistryClick} 
-        />
-      )}
+          {viewConfig.view === 'vendor_detail' && viewConfig.vendorName && (
+            <VendorDetail 
+              vendorName={viewConfig.vendorName} 
+              records={records}
+              onBack={() => handleNavigate('vendor_list')}
+              onMinistryClick={handleMinistryClick}
+            />
+          )}
 
-      {viewConfig.view === 'vendor_list' && (
-        <VendorList 
-            records={records} 
-            onSelectVendor={handleVendorClick}
-        />
-      )}
+          {viewConfig.view === 'ministry_list' && (
+            <MinistryList 
+                records={records} 
+                onSelectMinistry={handleMinistryClick} 
+            />
+          )}
 
-      {viewConfig.view === 'upload' && (
-        <Upload onDataLoaded={handleDataLoaded} />
-      )}
-      
-      {viewConfig.view === 'about' && (
-        <About />
+          {viewConfig.view === 'vendor_list' && (
+            <VendorList 
+                records={records} 
+                onSelectVendor={handleVendorClick}
+            />
+          )}
+
+          {viewConfig.view === 'upload' && (
+            <Upload onDataLoaded={handleDataLoaded} />
+          )}
+          
+          {viewConfig.view === 'about' && (
+            <About />
+          )}
+        </>
       )}
     </Layout>
   );

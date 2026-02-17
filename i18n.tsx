@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 type Language = 'en' | 'ms';
 
-const translations = {
+const defaultTranslations = {
   en: {
     nav_dashboard: "Dashboard",
     nav_ministries: "Ministries",
@@ -103,7 +103,7 @@ const translations = {
     ven_contracts_won: "Contracts Won",
     ven_ministries_served: "Ministries Served",
     ven_total_value: "Total Value",
-    ven_rank: "Rank",
+    ven_rank: "Kedudukan",
     th_company_name: "Company Name",
     msg_no_vendors: "No vendors found matching your search.",
 
@@ -320,13 +320,35 @@ const translations = {
 interface LanguageContextType {
   language: Language;
   toggleLanguage: () => void;
-  t: typeof translations['en'];
+  t: typeof defaultTranslations['en'];
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguage] = useState<Language>('en');
+  const [translations, setTranslations] = useState(defaultTranslations);
+
+  // Fetch localisation from GitHub
+  useEffect(() => {
+    const fetchLoc = async () => {
+        try {
+            // Cache busting with timestamp
+            // Fixed spelling to 'localization.json' based on user link
+            const res = await fetch(`https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/localization.json?t=${new Date().getTime()}`);
+            if (res.ok) {
+                const json = await res.json();
+                if (json.en && json.ms) {
+                    console.log("[GovWatch] Loaded dynamic localization.json from GitHub");
+                    setTranslations(json);
+                }
+            }
+        } catch (e) {
+            console.warn("[GovWatch] Failed to load localization.json. Using fallback defaults.", e);
+        }
+    };
+    fetchLoc();
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('govwatch_lang') as Language;
@@ -342,7 +364,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   return (
-    <LanguageContext.Provider value={{ language, toggleLanguage, t: translations[language] }}>
+    <LanguageContext.Provider value={{ language, toggleLanguage, t: translations[language] || translations['en'] }}>
       {children}
     </LanguageContext.Provider>
   );
