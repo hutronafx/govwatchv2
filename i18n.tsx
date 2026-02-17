@@ -125,11 +125,11 @@ const defaultTranslations = {
     admin_copy_code: "Copy Code",
     admin_json_upload: "JSON Upload",
     admin_drop_file: "Drop govwatch_data.json here",
-    admin_browse_files: "Browse Files",
+    admin_browse_files: "Semak Fail",
     admin_invalid_file: "Invalid File",
-    admin_scrape_success: "Success! Total records:",
-    admin_scrape_fail_blocked: "Scraper ran but found 0 records. Server IP might be blocked.",
-    admin_load_dashboard: "Scrape complete. Load dashboard?",
+    admin_scrape_success: "Berjaya! Jumlah rekod:",
+    admin_scrape_fail_blocked: "Pengikis berjalan tetapi menemui 0 rekod. IP pelayan mungkin disekat.",
+    admin_load_dashboard: "Pengikisan selesai. Muatkan papan pemuka?",
 
     // About
     abt_title: "Transparency in Action",
@@ -333,9 +333,8 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     const fetchLoc = async () => {
         try {
-            // Cache busting with timestamp
-            // Fixed spelling to 'localization.json' based on user link
-            const res = await fetch(`https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/localization.json?t=${new Date().getTime()}`);
+            // Corrected standard raw link
+            const res = await fetch(`https://raw.githubusercontent.com/hutronafx/govwatchv2/main/localization.json`);
             if (res.ok) {
                 const json = await res.json();
                 if (json.en && json.ms) {

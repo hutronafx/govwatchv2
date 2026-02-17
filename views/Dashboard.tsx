@@ -164,8 +164,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
     .reduce((acc, r) => acc + (r.amount || 0), 0);
   
   // Last Updated Logic (Recent Crawl)
-  // Logic: Use data if available, otherwise default to requested "18 February 2026"
-  let displayDateStr = "18 February 2026";
+  let displayDateStr = "Recent";
   const lastCrawlDate = records
     .map(r => r.crawledAt || '')
     .filter(d => d)
@@ -173,15 +172,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
     .pop();
   
   if (lastCrawlDate) {
-      // If we have actual crawl data, use it, but since user requested specific date logic for preview:
-      // We will check if it's way in the past. If it's a fresh crawl, use it.
-      // For this request, we prioritize the user's specific text if data is old/empty.
-      // To satisfy "updated word actually says the correct date (in this case, it would be 18 February 2026)"
-      // We can append or fallback.
-      // Let's rely on the hardcoded date as default if records are static/demo.
-      // But if live data comes in later, it should probably reflect reality.
-      // Since this is a "preview" request, let's hardcode the default logic to favor the requested date if no recent scrape happened.
-      displayDateStr = "18 February 2026"; 
+      try {
+          const d = new Date(lastCrawlDate);
+          if (!isNaN(d.getTime())) {
+              displayDateStr = d.toLocaleDateString(language === 'ms' ? 'ms-MY' : 'en-GB', {
+                  day: 'numeric', month: 'long', year: 'numeric'
+              });
+          }
+      } catch (e) {
+          // Fallback if date parsing fails
+      }
+  } else if (records.length > 0) {
+      // Fallback to today if we have data but no crawl date
+      displayDateStr = new Date().toLocaleDateString(language === 'ms' ? 'ms-MY' : 'en-GB', {
+          day: 'numeric', month: 'long', year: 'numeric'
+      });
   }
 
   // --- CHART DATA ---
