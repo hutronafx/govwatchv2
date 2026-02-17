@@ -21,14 +21,18 @@ function AppContent() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // We try multiple potential URLs because the user might have named the file differently
-      // or provided a link to the wrong file type (localization vs data).
-      const REPO_BASE = 'https://raw.githubusercontent.com/hutronafx/govwatchv2/main';
+      // 1. EXACT User Provided URL (with token)
+      const USER_URL = 'https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/localization.json?token=GHSAT0AAAAAADVXI5UU3J63OXEGJ7HZ7URW2MUUBEA';
+      
+      // 2. Fallbacks (Data file in same repo base, local file)
+      // We reconstruct the base URL from the user link to try finding the standard data file too
+      const REPO_BASE = 'https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main';
+      const TOKEN_SUFFIX = '?token=GHSAT0AAAAAADVXI5UU3J63OXEGJ7HZ7URW2MUUBEA';
+
       const URLS_TO_TRY = [
-        `${REPO_BASE}/localization.json`,    // User provided link
-        `${REPO_BASE}/govwatch_data.json`,   // Standard scraper output name
-        `${REPO_BASE}/data.json`,            // Generic name
-        '/data.json'                         // Local fallback
+        USER_URL,                                             // Exact link provided
+        `${REPO_BASE}/govwatch_data.json${TOKEN_SUFFIX}`,     // Standard data name + token
+        '/data.json'                                          // Local fallback
       ];
       
       let rawData = null;
@@ -36,20 +40,24 @@ function AppContent() {
 
       for (const url of URLS_TO_TRY) {
         try {
-            console.log(`Attempting to fetch data from: ${url}`);
+            console.log(`[GovWatch] Attempting fetch: ${url}`);
             const res = await fetch(url);
             if (res.ok) {
                 const text = await res.text();
-                // Basic validation to check if it looks like our data (array) and not HTML/404
+                // Basic validation: Is it a JSON array?
                 if (text.trim().startsWith('[') || text.includes('__EMPTY')) {
                     rawData = JSON.parse(text);
                     successUrl = url;
-                    console.log(`Success fetching from ${url}`);
+                    console.log(`[GovWatch] Success fetching from ${url}`);
                     break;
+                } else {
+                   console.warn(`[GovWatch] Fetched ${url} but it does not look like array data.`);
                 }
+            } else {
+                console.warn(`[GovWatch] Failed fetch ${url}: ${res.status} ${res.statusText}`);
             }
         } catch (e) {
-            console.warn(`Failed to fetch ${url}`, e);
+            console.warn(`[GovWatch] Network error fetching ${url}`, e);
         }
       }
       
@@ -58,39 +66,44 @@ function AppContent() {
         const cleanData: Record[] = [];
         if (Array.isArray(rawData)) {
              rawData.forEach((item: any, index: number) => {
-                // 1. Skip Header Rows or non-data files (like translation files)
+                // 1. Skip Header Rows or non-data files
                 if (item['__EMPTY'] === 'TAJUK SEBUT HARGA' || item['__EMPTY_3'] === 'KEMENTERIAN') return;
                 
-                // If it's a localization file (key/value pairs), it won't have the fields we need. Skip it.
-                if (item.nav_dashboard || item.kpi_total_value) return; 
-
                 // 2. Map fields
-                const ministry = item.ministry || item['__EMPTY_3'] || "Unknown Ministry";
-                const vendor = item.vendor || item['__EMPTY_4'] || "Unknown Vendor";
+                // Support both standard keys (ministry, amount) and Excel keys (__EMPTY_3, etc)
+                const ministry = item.ministry || item['__EMPTY_3'] || item.Ministry || "Unknown Ministry";
+                const vendor = item.vendor || item['__EMPTY_4'] || item.Vendor || item.Tenderer || "Unknown Vendor";
+                const title = item.title || item.Title || item['__EMPTY'] || "";
                 
                 // Parse Amount
                 let amount = 0;
-                if (typeof item.amount === 'number') amount = item.amount;
-                else if (item['__EMPTY_8']) {
-                    amount = parseFloat(String(item['__EMPTY_8']).replace(/[^0-9.-]+/g, ""));
-                } else if (typeof item.amount === 'string') {
-                    amount = parseFloat(item.amount.replace(/[^0-9.-]+/g, ""));
+                const rawAmount = item.amount || item['__EMPTY_8'] || item.Price || item.price;
+                if (typeof rawAmount === 'number') amount = rawAmount;
+                else if (typeof rawAmount === 'string') {
+                    amount = parseFloat(rawAmount.replace(/[^0-9.-]+/g, ""));
                 }
 
                 // Parse Date
-                let date = item.date || item['__EMPTY_6'];
+                let date = item.date || item['__EMPTY_6'] || item.Date;
                 if (!date || date === 'TIADA MAKLUMAT') date = item['__EMPTY_7'];
                 if (!date || date === 'TIADA MAKLUMAT') date = new Date().toISOString().split('T')[0];
+                
+                // Handle Excel serial dates if any
+                if (typeof date === 'number') {
+                     const dateObj = new Date(Math.round((date - 25569) * 86400 * 1000));
+                     date = dateObj.toISOString().split('T')[0];
+                }
                 if (date && typeof date === 'string' && date.includes(' ')) {
                     date = date.split(' ')[0];
                 }
 
                 // Map Category & Method
-                const category = item.category || item['__EMPTY_2'] || "General";
-                const method = item.method || "Open Tender";
+                const category = item.category || item['__EMPTY_2'] || item.Category || "General";
+                const method = item.method || item.Method || "Open Tender";
 
-                // Validation: Must have at least a Ministry or an Amount to be valid
-                if ((ministry !== "Unknown Ministry" || amount > 0) && ministry !== "Ministry") {
+                // Validation: Must have at least a known Amount or Ministry to be a valid record
+                // Also skip if it looks like a translation file (contains keys like 'nav_dashboard')
+                if (!item.nav_dashboard && (ministry !== "Unknown Ministry" || amount > 0) && ministry !== "Ministry") {
                     cleanData.push({
                         id: index + 1,
                         ministry: String(ministry).trim(),
@@ -99,6 +112,7 @@ function AppContent() {
                         method: String(method).trim(),
                         category: String(category).trim(),
                         date: String(date).trim(),
+                        title: title,
                         reason: item.reason || null,
                         sourceUrl: item.sourceUrl,
                         crawledAt: item.crawledAt
@@ -108,15 +122,17 @@ function AppContent() {
         }
 
         if (cleanData.length > 0) {
+          console.log(`[GovWatch] Loaded ${cleanData.length} valid records.`);
           setRecords(cleanData);
         } else {
-            console.warn("Data file loaded but contained 0 valid records.");
+            console.warn("[GovWatch] Data file loaded but contained 0 valid records. Check file format.");
+            // If the user provided file was actually the translation file, we might end up here.
         }
       } else {
-          setFetchError("Could not load data from any source.");
+          setFetchError("Could not load data. Please check your internet connection or the GitHub link.");
       }
     } catch (error) {
-      console.warn('Critical error during data fetch:', error);
+      console.error('[GovWatch] Critical error during data fetch:', error);
       setFetchError("Critical application error.");
     } finally {
       setIsLoading(false);
