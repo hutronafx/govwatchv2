@@ -28,15 +28,20 @@ function AppContent() {
     setIsConnected(false);
     
     try {
-      // Updated to use the new JSON data source as requested
-      const DATA_URL = `https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/Myprocurementdata%20complete.json?t=${new Date().getTime()}`;
+      // Corrected URL: Removed 'refs/heads/' from the path as raw.githubusercontent.com does not use it.
+      const DATA_URL = `https://raw.githubusercontent.com/hutronafx/govwatchv2/main/Myprocurementdata%20complete.json?t=${new Date().getTime()}`;
       
       console.log(`[GovWatch] Fetching Database: ${DATA_URL}`);
       
       const response = await fetch(DATA_URL);
       
       if (response.ok) {
-        const jsonData = await response.json();
+        let jsonData;
+        try {
+            jsonData = await response.json();
+        } catch (e: any) {
+            throw new Error(`JSON Parse Error: ${e.message}. The file might be malformed or not valid JSON.`);
+        }
         
         if (!Array.isArray(jsonData)) {
              throw new Error("Fetched data is not an array");

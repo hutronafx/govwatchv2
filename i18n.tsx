@@ -333,8 +333,8 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     const fetchLoc = async () => {
         try {
-            // Corrected standard raw link based on user feedback
-            const res = await fetch(`https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/localization.json`);
+            // Corrected standard raw link based on user feedback (removed refs/heads/)
+            const res = await fetch(`https://raw.githubusercontent.com/hutronafx/govwatchv2/main/localization.json`);
             if (res.ok) {
                 const json = await res.json();
                 if (json.en && json.ms) {
