@@ -30,9 +30,8 @@ function AppContent() {
     
     try {
       // Direct link to the raw Excel file on GitHub
-      // Converted blob link to raw link: https://raw.githubusercontent.com/hutronafx/govwatchv2/main/Myprocurementdata%20complete.xlsx
-      // Added timestamp to prevent caching issues since repo status changed from private to public
-      const EXCEL_URL = `https://raw.githubusercontent.com/hutronafx/govwatchv2/main/Myprocurementdata%20complete.xlsx?t=${new Date().getTime()}`;
+      // Updated to use refs/heads/main structure as per user configuration
+      const EXCEL_URL = `https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/Myprocurementdata%20complete.xlsx?t=${new Date().getTime()}`;
       
       console.log(`[GovWatch] Fetching Database: ${EXCEL_URL}`);
       

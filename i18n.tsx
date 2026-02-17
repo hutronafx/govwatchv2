@@ -305,7 +305,7 @@ const defaultTranslations = {
     abt_accessibility: "Kebolehcapaian",
     abt_accessibility_desc: "Menjadikan data kewangan yang kompleks mudah difahami melalui papan pemuka dan carta interaktif.",
     abt_methodology: "Metodologi",
-    abt_methodology_text: "GovWatch mengagregat data dari portal kerajaan awam, khususnya sistem MyProcurement yang diuruskan oleh Kementerian Kewangan.",
+    abt_methodology_text: "GovWatch mengagregat data from public government portals, specifically the MyProcurement system managed by the Ministry of Finance.",
     abt_similar: "Inisiatif Serupa",
     abt_disclaimer: "Penafian",
     abt_not_official: "Bukan Laman Web Rasmi Kerajaan.",
@@ -333,14 +333,16 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     const fetchLoc = async () => {
         try {
-            // Corrected standard raw link
-            const res = await fetch(`https://raw.githubusercontent.com/hutronafx/govwatchv2/main/localization.json`);
+            // Corrected standard raw link based on user feedback
+            const res = await fetch(`https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/localization.json`);
             if (res.ok) {
                 const json = await res.json();
                 if (json.en && json.ms) {
                     console.log("[GovWatch] Loaded dynamic localization.json from GitHub");
                     setTranslations(json);
                 }
+            } else {
+              console.warn(`[GovWatch] Fetch failed with status: ${res.status}`);
             }
         } catch (e) {
             console.warn("[GovWatch] Failed to load localization.json. Using fallback defaults.", e);
