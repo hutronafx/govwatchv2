@@ -10,9 +10,7 @@ import { About } from './views/About';
 import { ViewConfig, Record } from './types';
 import { LanguageProvider } from './i18n';
 import { AlertTriangle, Database, Loader2 } from 'lucide-react';
-
-// We do not import INITIAL_RECORDS to ensure we don't accidentally use them.
-// The app will be empty if the fetch fails, proving the data source.
+import { INITIAL_RECORDS } from './data';
 
 function AppContent() {
   const [viewConfig, setViewConfig] = useState<ViewConfig>({ view: 'dashboard' });
@@ -20,6 +18,7 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [dataSource, setDataSource] = useState<string>('');
 
   // Auto-fetch data on startup
   const fetchData = async () => {
@@ -27,28 +26,18 @@ function AppContent() {
     setErrorMsg(null);
     setIsConnected(false);
     
-    try {
-      // Corrected URL: Removed 'refs/heads/' from the path as raw.githubusercontent.com does not use it.
-      const DATA_URL = `https://raw.githubusercontent.com/hutronafx/govwatchv2/main/Myprocurementdata%20complete.json?t=${new Date().getTime()}`;
-      
-      console.log(`[GovWatch] Fetching Database: ${DATA_URL}`);
-      
-      const response = await fetch(DATA_URL);
-      
-      if (response.ok) {
-        let jsonData;
-        try {
-            jsonData = await response.json();
-        } catch (e: any) {
-            throw new Error(`JSON Parse Error: ${e.message}. The file might be malformed or not valid JSON.`);
-        }
-        
-        if (!Array.isArray(jsonData)) {
-             throw new Error("Fetched data is not an array");
-        }
+    // Strategy: 
+    // 1. Try GitHub (Primary Source) - WITH ROBUST PARSING
+    // 2. If fail, try Local /data.json (Backup)
+    // 3. If fail, use Hardcoded INITIAL_RECORDS (Last Resort)
+
+    const GITHUB_URL = `https://raw.githubusercontent.com/hutronafx/govwatchv2/main/Myprocurementdata%20complete.json`;
+    
+    // Helper to process raw JSON into our Record type
+    const processData = (jsonData: any[], sourceName: string) => {
+        if (!Array.isArray(jsonData)) throw new Error("Data is not an array");
         
         const cleanData: Record[] = [];
-        
         jsonData.forEach((row: any, index: number) => {
             // Flexible Column Mapping: Checks for Capitalized (Excel) or Lowercase (JSON) keys
             const ministry = row['Ministry'] || row['ministry'] || row['Kementerian'] || row['Agency'] || row['Agensi'] || "Unknown Ministry";
@@ -67,23 +56,21 @@ function AppContent() {
             // Date Cleaning
             let dateStr = row['Date'] || row['date'] || row['Tarikh'] || row['Award Date'] || row['Contract Date'] || new Date().toISOString().split('T')[0];
             if (typeof dateStr === 'number') {
-                // Handle Excel serial date (Excel starts at Dec 30 1899 usually)
+                // Handle Excel serial date
                 const dateObj = new Date(Math.round((dateStr - 25569) * 86400 * 1000));
-                // Validate date validity
                 if (!isNaN(dateObj.getTime())) {
                     dateStr = dateObj.toISOString().split('T')[0];
                 } else {
                     dateStr = new Date().toISOString().split('T')[0];
                 }
             } else if (typeof dateStr === 'string') {
-                // Try parsing standard date strings
                 const d = new Date(dateStr);
                 if (!isNaN(d.getTime())) {
                     dateStr = d.toISOString().split('T')[0];
                 }
             }
 
-            // Category Inference (if missing)
+            // Category Inference
             let category = row['Category'] || row['category'] || row['Kategori'] || "General";
             if (category === "General" || !category) {
                  const t = (title || "").toLowerCase();
@@ -92,10 +79,9 @@ function AppContent() {
                  else if (t.includes('service') || t.includes('khidmat') || t.includes('sewa') || t.includes('lanti') || t.includes('security') || t.includes('clean') || t.includes('consult')) category = 'Perkhidmatan';
             }
 
-            // Only add valid rows (Must have a value or valid entities)
             if (amount > 0 || (ministry !== "Unknown Ministry" && vendor !== "Unknown Vendor")) {
                 cleanData.push({
-                    id: index + 1,
+                    id: row.id || index + 1,
                     ministry: String(ministry).trim(),
                     vendor: String(vendor).trim(),
                     amount: amount || 0,
@@ -103,166 +89,28 @@ function AppContent() {
                     category: String(category).trim(),
                     date: String(dateStr).trim(),
                     title: String(title).trim(),
-                    sourceUrl: DATA_URL,
+                    sourceUrl: sourceName,
                     crawledAt: row['crawledAt'] || new Date().toISOString()
                 });
             }
         });
-
-        if (cleanData.length > 0) {
-          console.log(`[GovWatch] Loaded ${cleanData.length} valid records from JSON.`);
-          setRecords(cleanData);
-          setIsConnected(true);
-        } else {
-            console.warn("[GovWatch] JSON parsed but 0 valid records found.");
-            setErrorMsg("Connected to GitHub, but found 0 valid records. Please check the JSON structure.");
-            setRecords([]); // Explicitly empty
-        }
-      } else {
-          // Response not OK (e.g. 404, 403)
-          throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
-      }
-    } catch (error: any) {
-      console.error('[GovWatch] Error during data fetch:', error);
-      setErrorMsg(`Could not load data from GitHub. ${error.message}. Ensure the repository is Public and the filename is correct.`);
-      setRecords([]); // Explicitly empty
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-
-    const checkHash = () => {
-      if (window.location.hash === '#secret-admin-panel') {
-        setViewConfig({ view: 'upload' });
-      }
+        return cleanData;
     };
 
-    checkHash();
-    window.addEventListener('hashchange', checkHash);
-    return () => window.removeEventListener('hashchange', checkHash);
-  }, []);
+    try {
+        // Attempt 1: GitHub
+        console.log(`[GovWatch] Attempting GitHub Fetch: ${GITHUB_URL}`);
+        const ghRes = await fetch(GITHUB_URL);
+        if (!ghRes.ok) throw new Error(`GitHub Status: ${ghRes.status}`);
+        
+        // Use .text() instead of .json() to manually handle parsing errors
+        const textData = await ghRes.text();
+        let ghJson;
 
-  const handleNavigate = (view: any) => {
-    setViewConfig({ view });
-    window.scrollTo(0, 0);
-  };
-
-  const handleMinistryClick = (ministryName: string) => {
-    setViewConfig({ view: 'ministry_detail', ministryName });
-    window.scrollTo(0, 0);
-  };
-
-  const handleVendorClick = (vendorName: string) => {
-    setViewConfig({ view: 'vendor_detail', vendorName });
-    window.scrollTo(0, 0);
-  };
-
-  const handleDataLoaded = (newRecords: Record[]) => {
-    setRecords(newRecords);
-    handleNavigate('dashboard');
-    setIsConnected(true);
-    setErrorMsg(null);
-  };
-
-  return (
-    <Layout activeView={viewConfig.view} onNavigate={handleNavigate}>
-      {/* Data Status Banner */}
-      {errorMsg && !isLoading && (
-          <div className="bg-gw-danger/10 border-b border-gw-danger/20 px-4 py-4 text-center text-sm text-gw-danger flex flex-col md:flex-row items-center justify-center gap-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" />
-                <span><strong>Connection Failed:</strong> {errorMsg}</span>
-              </div>
-              <button 
-                onClick={() => fetchData()} 
-                className="px-4 py-1 bg-gw-danger text-gw-bg font-bold rounded hover:bg-gw-danger/80 transition-colors"
-              >
-                Retry Connection
-              </button>
-          </div>
-      )}
-
-      {isConnected && !isLoading && (
-          <div className="bg-gw-success/10 border-b border-gw-success/20 px-4 py-1 text-center text-[10px] text-gw-success flex items-center justify-center gap-2">
-              <Database className="w-3 h-3" />
-              <span>Connected to Live GitHub Database: <strong>Myprocurementdata complete.json</strong></span>
-          </div>
-      )}
-
-      {/* Loading State */}
-      {isLoading && (
-         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn">
-            <Loader2 className="w-10 h-10 text-gw-success animate-spin mb-4" />
-            <h2 className="text-xl font-bold text-white">Connecting to GitHub...</h2>
-            <p className="text-gw-muted mt-2 text-sm">Fetching Myprocurementdata complete.json</p>
-         </div>
-      )}
-
-      {/* Content (Only show if not loading) */}
-      {!isLoading && (
-        <>
-          {viewConfig.view === 'dashboard' && (
-            <Dashboard 
-              records={records} 
-              isLoading={isLoading}
-              onMinistryClick={handleMinistryClick} 
-              onVendorClick={handleVendorClick}
-            />
-          )}
-          
-          {viewConfig.view === 'ministry_detail' && viewConfig.ministryName && (
-            <MinistryDetail 
-              ministryName={viewConfig.ministryName} 
-              records={records}
-              onBack={() => handleNavigate('ministry_list')}
-            />
-          )}
-
-          {viewConfig.view === 'vendor_detail' && viewConfig.vendorName && (
-            <VendorDetail 
-              vendorName={viewConfig.vendorName} 
-              records={records}
-              onBack={() => handleNavigate('vendor_list')}
-              onMinistryClick={handleMinistryClick}
-            />
-          )}
-
-          {viewConfig.view === 'ministry_list' && (
-            <MinistryList 
-                records={records} 
-                onSelectMinistry={handleMinistryClick} 
-            />
-          )}
-
-          {viewConfig.view === 'vendor_list' && (
-            <VendorList 
-                records={records} 
-                onSelectVendor={handleVendorClick}
-            />
-          )}
-
-          {viewConfig.view === 'upload' && (
-            <Upload onDataLoaded={handleDataLoaded} />
-          )}
-          
-          {viewConfig.view === 'about' && (
-            <About />
-          )}
-        </>
-      )}
-    </Layout>
-  );
-}
-
-function App() {
-  return (
-    <LanguageProvider>
-      <AppContent />
-    </LanguageProvider>
-  );
-}
-
-export default App;
+        try {
+            ghJson = JSON.parse(textData);
+        } catch (parseError: any) {
+            console.warn(`[GovWatch] JSON Parse Error: ${parseError.message}. Attempting to sanitize...`);
+            
+            // SANITIZATION LOGIC
+            // The error "Unexpected non-whitespace character after JSON" usually
