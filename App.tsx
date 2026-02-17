@@ -16,7 +16,7 @@ import { INITIAL_RECORDS } from './data';
 // The app will try these URLs in order. 
 // If one fails, it moves to the next.
 const DATA_SOURCES = [
-    { name: "GitHub Database", url: "https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/public/data.json" },
+    { name: "Live Database (npoint)", url: "https://api.npoint.io/cdb0a3341315d9e62968" },
     { name: "Local File", url: "/data.json" },
     { name: "Demo Data", url: "DEMO" }
 ];
