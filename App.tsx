@@ -9,8 +9,7 @@ import { Upload } from './views/Upload';
 import { About } from './views/About';
 import { ViewConfig, Record } from './types';
 import { LanguageProvider } from './i18n';
-import { AlertTriangle, Database, Loader2, RefreshCw } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { AlertTriangle, Database, Loader2 } from 'lucide-react';
 
 // We do not import INITIAL_RECORDS to ensure we don't accidentally use them.
 // The app will be empty if the fetch fails, proving the data source.
@@ -29,44 +28,39 @@ function AppContent() {
     setIsConnected(false);
     
     try {
-      // Direct link to the raw Excel file on GitHub
-      // Updated to use refs/heads/main structure as per user configuration
-      const EXCEL_URL = `https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/Myprocurementdata%20complete.xlsx?t=${new Date().getTime()}`;
+      // Updated to use the new JSON data source as requested
+      const DATA_URL = `https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/Myprocurementdata%20complete.json?t=${new Date().getTime()}`;
       
-      console.log(`[GovWatch] Fetching Database: ${EXCEL_URL}`);
+      console.log(`[GovWatch] Fetching Database: ${DATA_URL}`);
       
-      const response = await fetch(EXCEL_URL);
+      const response = await fetch(DATA_URL);
       
       if (response.ok) {
-        // Parse Excel File
-        const arrayBuffer = await response.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        const sheetName = workbook.SheetNames[0]; // Assume first sheet
-        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = await response.json();
         
-        // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        if (!Array.isArray(jsonData)) {
+             throw new Error("Fetched data is not an array");
+        }
         
         const cleanData: Record[] = [];
         
         jsonData.forEach((row: any, index: number) => {
-            // Flexible Column Mapping
-            // Check for various casing and common synonyms
-            const ministry = row['Ministry'] || row['Kementerian'] || row['Agency'] || row['Agensi'] || "Unknown Ministry";
-            const vendor = row['Vendor'] || row['Petender'] || row['Tenderer'] || row['Nama Syarikat'] || row['Company'] || "Unknown Vendor";
-            const title = row['Title'] || row['Tajuk'] || row['Description'] || row['Tajuk Projek'] || row['Project Title'] || "";
-            const method = row['Method'] || row['Kaedah'] || row['Procurement Method'] || row['Mode'] || "Open Tender";
+            // Flexible Column Mapping: Checks for Capitalized (Excel) or Lowercase (JSON) keys
+            const ministry = row['Ministry'] || row['ministry'] || row['Kementerian'] || row['Agency'] || row['Agensi'] || "Unknown Ministry";
+            const vendor = row['Vendor'] || row['vendor'] || row['Petender'] || row['Tenderer'] || row['Nama Syarikat'] || row['Company'] || "Unknown Vendor";
+            const title = row['Title'] || row['title'] || row['Tajuk'] || row['Description'] || row['Tajuk Projek'] || row['Project Title'] || "";
+            const method = row['Method'] || row['method'] || row['Kaedah'] || row['Procurement Method'] || row['Mode'] || "Open Tender";
             
             // Amount Cleaning (Remove RM, commas, etc)
             let amount = 0;
-            const rawAmount = row['Price'] || row['Nilai'] || row['Harga'] || row['Amount'] || row['Contract Value'] || row['Cost'];
+            const rawAmount = row['Price'] || row['amount'] || row['price'] || row['Nilai'] || row['Harga'] || row['Amount'] || row['Contract Value'] || row['Cost'];
             if (typeof rawAmount === 'number') amount = rawAmount;
             else if (typeof rawAmount === 'string') {
                 amount = parseFloat(rawAmount.replace(/[^0-9.-]+/g, ""));
             }
 
             // Date Cleaning
-            let dateStr = row['Date'] || row['Tarikh'] || row['Award Date'] || row['Contract Date'] || new Date().toISOString().split('T')[0];
+            let dateStr = row['Date'] || row['date'] || row['Tarikh'] || row['Award Date'] || row['Contract Date'] || new Date().toISOString().split('T')[0];
             if (typeof dateStr === 'number') {
                 // Handle Excel serial date (Excel starts at Dec 30 1899 usually)
                 const dateObj = new Date(Math.round((dateStr - 25569) * 86400 * 1000));
@@ -85,7 +79,7 @@ function AppContent() {
             }
 
             // Category Inference (if missing)
-            let category = row['Category'] || row['Kategori'] || "General";
+            let category = row['Category'] || row['category'] || row['Kategori'] || "General";
             if (category === "General" || !category) {
                  const t = (title || "").toLowerCase();
                  if (t.includes('bina') || t.includes('road') || t.includes('bangunan') || t.includes('kerja') || t.includes('upgrad') || t.includes('construction') || t.includes('renovation')) category = 'Kerja';
@@ -104,19 +98,19 @@ function AppContent() {
                     category: String(category).trim(),
                     date: String(dateStr).trim(),
                     title: String(title).trim(),
-                    sourceUrl: EXCEL_URL,
-                    crawledAt: new Date().toISOString()
+                    sourceUrl: DATA_URL,
+                    crawledAt: row['crawledAt'] || new Date().toISOString()
                 });
             }
         });
 
         if (cleanData.length > 0) {
-          console.log(`[GovWatch] Loaded ${cleanData.length} valid records from Excel.`);
+          console.log(`[GovWatch] Loaded ${cleanData.length} valid records from JSON.`);
           setRecords(cleanData);
           setIsConnected(true);
         } else {
-            console.warn("[GovWatch] Excel parsed but 0 valid records found.");
-            setErrorMsg("Connected to GitHub, but found 0 valid records in the spreadsheet. Please check column headers.");
+            console.warn("[GovWatch] JSON parsed but 0 valid records found.");
+            setErrorMsg("Connected to GitHub, but found 0 valid records. Please check the JSON structure.");
             setRecords([]); // Explicitly empty
         }
       } else {
@@ -125,7 +119,7 @@ function AppContent() {
       }
     } catch (error: any) {
       console.error('[GovWatch] Error during data fetch:', error);
-      setErrorMsg(`Could not load data from GitHub. ${error.message}. Ensure the repository is Public.`);
+      setErrorMsg(`Could not load data from GitHub. ${error.message}. Ensure the repository is Public and the filename is correct.`);
       setRecords([]); // Explicitly empty
     } finally {
       setIsLoading(false);
@@ -189,7 +183,7 @@ function AppContent() {
       {isConnected && !isLoading && (
           <div className="bg-gw-success/10 border-b border-gw-success/20 px-4 py-1 text-center text-[10px] text-gw-success flex items-center justify-center gap-2">
               <Database className="w-3 h-3" />
-              <span>Connected to Live GitHub Database: <strong>Myprocurementdata complete.xlsx</strong></span>
+              <span>Connected to Live GitHub Database: <strong>Myprocurementdata complete.json</strong></span>
           </div>
       )}
 
@@ -198,7 +192,7 @@ function AppContent() {
          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeIn">
             <Loader2 className="w-10 h-10 text-gw-success animate-spin mb-4" />
             <h2 className="text-xl font-bold text-white">Connecting to GitHub...</h2>
-            <p className="text-gw-muted mt-2 text-sm">Fetching Myprocurementdata complete.xlsx</p>
+            <p className="text-gw-muted mt-2 text-sm">Fetching Myprocurementdata complete.json</p>
          </div>
       )}
 
