@@ -108,6 +108,12 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
     
     try {
         const response = await fetch('/api/trigger-scrape', { method: 'POST' });
+        
+        // Handle 404/500 if backend is missing (preview mode)
+        if (!response.ok) {
+           throw new Error("Backend unavailable in preview mode.");
+        }
+
         const result = await response.json();
         
         if (result.success) {
@@ -144,11 +150,6 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
         setIsLogOpen(true);
     } catch (e) { alert("Could not load log file."); } 
     finally { setIsLoadingLog(false); }
-  };
-
-  const copyScript = () => {
-    navigator.clipboard.writeText(BROWSER_SCRIPT);
-    alert("Script copied!");
   };
 
   // Manual Upload Handlers
@@ -221,7 +222,13 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
 
                 if (mappedData.length === 0) throw new Error("No valid rows found");
 
-                await fetch('/api/update-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(mappedData) });
+                // Try saving to backend, but ignore error if frontend-only
+                try {
+                    await fetch('/api/update-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(mappedData) });
+                } catch (e) {
+                    console.warn("Backend unavailable, updating local state only.");
+                }
+                
                 setStatus('success');
                 setTimeout(() => { onDataLoaded(mappedData); }, 1500);
 
@@ -238,7 +245,13 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
             try {
                 const rawData = JSON.parse(e.target?.result as string);
                 if (!Array.isArray(rawData)) throw new Error("Not an array");
-                await fetch('/api/update-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(rawData) });
+                
+                try {
+                    await fetch('/api/update-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(rawData) });
+                } catch (e) {
+                    console.warn("Backend unavailable, updating local state only.");
+                }
+
                 setStatus('success');
                 setTimeout(() => { onDataLoaded(rawData); }, 1500);
             } catch (err) { setStatus('error'); }

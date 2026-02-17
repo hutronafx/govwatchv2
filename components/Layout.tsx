@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, LayoutDashboard, Building2, Store, Info, Languages } from 'lucide-react';
+import { Eye, LayoutDashboard, Building2, Store, Info, Languages, Lock } from 'lucide-react';
 import { useLanguage } from '../i18n';
 
 interface LayoutProps {
@@ -93,9 +93,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeView, onNavigate
             </div>
 
             <p className="text-sm text-gw-text font-semibold">GovWatch MY</p>
-            <p className="text-xs text-gw-muted mt-2">
+            <p className="text-xs text-gw-muted mt-2 mb-4">
                 &copy; {new Date().getFullYear()} Public Procurement Monitoring Initiative.
             </p>
+            
+            <button 
+                onClick={() => onNavigate('upload')} 
+                className="text-gw-border hover:text-gw-muted transition-colors p-2"
+                title="Admin Access"
+            >
+                <Lock className="w-3 h-3" />
+            </button>
         </div>
       </footer>
     </div>
