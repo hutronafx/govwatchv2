@@ -134,15 +134,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
         </div>
         <h2 className="text-2xl font-bold text-white mb-2">{t.no_records}</h2>
         <p className="text-gw-muted max-w-md mb-8">
-            The database is empty. To upload data, append <span className="text-gw-success font-mono">#secret-admin-panel</span> to the URL.
+            {t.no_records_desc}
         </p>
         <button
-            onClick={handleRefreshData}
-            disabled={isRefreshing}
+            onClick={() => window.location.reload()}
             className="flex items-center gap-2 px-6 py-3 bg-gw-success text-gw-bg rounded-lg font-bold hover:bg-gw-success/90 transition-all"
         >
-            <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? t.admin_running : t.btn_fetch_initial}
+            <RefreshCw className="w-5 h-5" />
+            {t.btn_refresh}
         </button>
       </div>
     );

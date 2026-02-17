@@ -19,10 +19,28 @@ function AppContent() {
   // Auto-fetch data on startup
   const fetchData = async () => {
     try {
-      const response = await fetch('/data.json');
-      if (response.ok) {
-        const rawData = await response.json();
-        
+      // Priority: Check external data source provided by user
+      const EXTERNAL_DATA_URL = 'https://raw.githubusercontent.com/hutronafx/govwatchv2/refs/heads/main/localization.json?token=GHSAT0AAAAAADVXI5UU3J63OXEGJ7HZ7URW2MUUBEA';
+      
+      let rawData = null;
+      try {
+          const res = await fetch(EXTERNAL_DATA_URL);
+          if (res.ok) {
+              rawData = await res.json();
+          }
+      } catch (e) {
+          console.warn("External data fetch failed, falling back to local.");
+      }
+
+      // Fallback: Local data.json
+      if (!rawData) {
+        const response = await fetch('/data.json');
+        if (response.ok) {
+            rawData = await response.json();
+        }
+      }
+      
+      if (rawData) {
         // NORMALIZE DATA
         const cleanData: Record[] = [];
         if (Array.isArray(rawData)) {
