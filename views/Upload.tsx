@@ -160,17 +160,18 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
   const processFile = (file: File) => {
     setStatus('processing');
     const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+    const isCsv = file.name.endsWith('.csv');
     const isJson = file.name.endsWith('.json');
 
-    if (!isExcel && !isJson) { 
+    if (!isExcel && !isJson && !isCsv) { 
         setStatus('error'); 
-        alert("Please upload an Excel (.xlsx) or JSON file.");
+        alert("Please upload an Excel (.xlsx), CSV (.csv) or JSON file.");
         return; 
     }
 
     const reader = new FileReader();
     
-    if (isExcel) {
+    if (isExcel || isCsv) {
         reader.onload = async (e) => {
             try {
                 const data = e.target?.result;
@@ -179,7 +180,7 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
                 const sheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(sheet);
                 
-                // Map Excel Columns to Application Schema
+                // Map Excel/CSV Columns to Application Schema
                 const mappedData: Record[] = jsonData.map((row: any, index: number) => {
                     // Excel Date Parsing
                     let dateStr = new Date().toISOString().split('T')[0];
@@ -227,7 +228,7 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
             } catch (err) {
                 console.error(err);
                 setStatus('error');
-                alert("Failed to parse Excel file. Ensure columns match: Title, Tender No., Ministry, Tenderer, Price, Date");
+                alert("Failed to parse file. Ensure columns match: Title, Tender No., Ministry, Tenderer, Price, Date");
             }
         };
         reader.readAsBinaryString(file);
@@ -274,10 +275,10 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* EXCEL UPLOAD (Main) */}
+        {/* EXCEL/CSV UPLOAD (Main) */}
         <div className="bg-gw-card border border-gw-border rounded-xl p-6 flex flex-col relative overflow-hidden lg:col-span-2">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <FileSpreadsheet className="w-5 h-5 text-green-400" /> Excel Data Upload
+                <FileSpreadsheet className="w-5 h-5 text-green-400" /> Excel / CSV Upload
             </h3>
             
             <div className="flex-1 flex flex-col justify-center items-center border-2 border-dashed border-gw-border hover:border-gw-success transition-all rounded-lg p-8 bg-gw-bg/50"
@@ -286,13 +287,14 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
                 {status === 'idle' && (
                     <>
                         <UploadIcon className="w-12 h-12 text-gw-muted mb-4" />
-                        <h4 className="text-white font-bold mb-2">Drag & Drop your Excel file here</h4>
+                        <h4 className="text-white font-bold mb-2">Drag & Drop file here</h4>
                         <p className="text-gw-muted text-sm mb-6 text-center max-w-md">
-                            Supports .xlsx files with columns: No, Title, Tender No, Category, Ministry, Tenderer, Address, Date, Price.
+                            Supports .xlsx, .xls, and .csv files. <br/>
+                            Columns: No, Title, Tender No, Category, Ministry, Tenderer, Address, Date, Price.
                         </p>
                         <label className="px-6 py-3 bg-gw-success text-gw-bg font-bold rounded-lg cursor-pointer hover:bg-gw-success/90 transition-colors">
-                            Select Spreadsheet
-                            <input type="file" className="hidden" accept=".xlsx,.xls,.json" onChange={handleFileSelect} />
+                            Select File
+                            <input type="file" className="hidden" accept=".xlsx,.xls,.json,.csv" onChange={handleFileSelect} />
                         </label>
                     </>
                 )}
@@ -300,7 +302,7 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
                     <div className="text-center">
                         <Loader2 className="w-12 h-12 text-gw-success animate-spin mx-auto mb-4" />
                         <p className="text-white">Processing Data...</p>
-                        <p className="text-gw-muted text-xs">Parsing spreadsheet and standardizing fields.</p>
+                        <p className="text-gw-muted text-xs">Parsing file and standardizing fields.</p>
                     </div>
                 )}
                 {status === 'success' && (
