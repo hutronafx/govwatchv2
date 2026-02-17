@@ -1,7 +1,7 @@
 import React from 'react';
 import { Record } from '../types';
 import { formatMoney, getMinistryLabel } from '../utils';
-import { ArrowLeft, Building2, Calendar, CreditCard, FileWarning, AlertTriangle, PieChart as PieChartIcon, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, Building2, Calendar, CreditCard, FileWarning, AlertTriangle, PieChart as PieChartIcon, Link as LinkIcon, Activity } from 'lucide-react';
 import { useLanguage } from '../i18n';
 
 interface MinistryDetailProps {
@@ -47,8 +47,30 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
     .map(([name, value]) => ({
         name,
         value,
-        percent: (value / totalSpend) * 100
+        percent: totalSpend > 0 ? (value / totalSpend) * 100 : 0
     }));
+
+  // 3. Procurement Risk Score Calculation
+  // Formula: (Direct Nego % * 0.6) + (Top 5 Vendor Concentration % * 0.4)
+  // Scale: 0 to 10
+  const top5Concentration = topVendors.reduce((acc, v) => acc + v.percent, 0);
+  const rawRiskScore = (directPercent * 0.6) + (top5Concentration * 0.4);
+  const riskScore = Math.min(Math.round(rawRiskScore / 10), 10); // Scale 0-100 to 0-10
+  
+  // Determine Risk Color and Label
+  let riskColor = 'text-gw-success';
+  let riskBg = 'bg-gw-success';
+  let riskLabel = t.risk_lvl_low;
+
+  if (riskScore >= 7) {
+    riskColor = 'text-gw-danger';
+    riskBg = 'bg-gw-danger';
+    riskLabel = t.risk_lvl_high;
+  } else if (riskScore >= 4) {
+    riskColor = 'text-orange-400';
+    riskBg = 'bg-orange-400';
+    riskLabel = t.risk_lvl_med;
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
@@ -85,15 +107,44 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
           {/* 1. INTEGRITY / RISK PROFILE */}
-          <div className="bg-gw-card border border-gw-border rounded-lg p-6">
-             <div className="flex items-center justify-between mb-4">
+          <div className="bg-gw-card border border-gw-border rounded-lg p-6 flex flex-col h-full">
+             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5 text-gw-danger" />
                     {t.det_integrity}
                 </h3>
              </div>
+
+             {/* RISK SCORE DISPLAY */}
+             <div className="mb-6 p-4 rounded-lg bg-gw-bg border border-gw-border relative overflow-hidden">
+                <div className="flex justify-between items-center relative z-10">
+                    <div>
+                        <div className="text-xs text-gw-muted uppercase tracking-wider font-bold mb-1 flex items-center gap-1">
+                            <Activity className="w-3 h-3" /> {t.det_risk_score}
+                        </div>
+                        <div className={`text-4xl font-black ${riskColor}`}>
+                            {riskScore}<span className="text-lg text-gw-muted/50 font-normal">/10</span>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold text-white mb-1 ${riskBg} bg-opacity-80`}>
+                            {riskLabel}
+                        </div>
+                        <div className="text-[10px] text-gw-muted max-w-[120px] leading-tight">
+                           {t.det_risk_level}
+                        </div>
+                    </div>
+                </div>
+                {/* Background Progress Bar */}
+                <div className="absolute bottom-0 left-0 h-1 bg-gw-border w-full">
+                    <div className={`h-full ${riskBg} transition-all duration-1000`} style={{ width: `${riskScore * 10}%` }}></div>
+                </div>
+                <div className="mt-3 text-[10px] text-gw-muted italic border-t border-gw-border/50 pt-2">
+                    {t.risk_explanation}
+                </div>
+             </div>
              
-             <div className="space-y-6">
+             <div className="space-y-6 flex-grow">
                 <div>
                     <div className="flex justify-between text-sm mb-2">
                         <span className="text-gw-muted">{t.lbl_method_breakdown}</span>
@@ -132,7 +183,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
           </div>
 
           {/* 2. MARKET CONCENTRATION (TOP VENDORS) */}
-          <div className="bg-gw-card border border-gw-border rounded-lg p-6">
+          <div className="bg-gw-card border border-gw-border rounded-lg p-6 flex flex-col h-full">
              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <PieChartIcon className="w-5 h-5 text-blue-400" />

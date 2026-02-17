@@ -82,6 +82,14 @@ const translations = {
     lbl_percent_spend: "of total spend",
     lbl_standard_procurement: "Standard procurement via open tender process.",
     lbl_verified_on: "Verified on",
+    
+    // Risk Score
+    det_risk_score: "Procurement Risk Score",
+    det_risk_level: "Risk Level",
+    risk_lvl_high: "Critical",
+    risk_lvl_med: "Moderate",
+    risk_lvl_low: "Low",
+    risk_explanation: "Score based on Direct Negotiation ratio (60%) and Vendor Concentration (40%).",
 
     // Vendor List
     ven_title: "Vendor Directory",
@@ -211,6 +219,14 @@ const translations = {
     lbl_percent_spend: "daripada jumlah perbelanjaan",
     lbl_standard_procurement: "Perolehan standard melalui proses tender terbuka.",
     lbl_verified_on: "Disahkan pada",
+
+    // Risk Score
+    det_risk_score: "Skor Risiko Perolehan",
+    det_risk_level: "Tahap Risiko",
+    risk_lvl_high: "Kritikal",
+    risk_lvl_med: "Sederhana",
+    risk_lvl_low: "Rendah",
+    risk_explanation: "Skor berdasarkan nisbah Rundingan Terus (60%) dan Konsentrasi Pembekal (40%).",
 
     // Vendor List
     ven_title: "Direktori Pembekal",
