@@ -5,13 +5,11 @@ import { MinistryDetail } from './views/MinistryDetail';
 import { MinistryList } from './views/MinistryList';
 import { VendorList } from './views/VendorList';
 import { VendorDetail } from './views/VendorDetail';
-import { Upload } from './views/Upload';
 import { About } from './views/About';
 import { ViewConfig, Record } from './types';
 import { LanguageProvider } from './i18n';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { cleanMinistryName } from './utils';
 
 // --- CONFIGURATION ---
 const DATA_SOURCES = [
@@ -51,10 +49,7 @@ function AppContent() {
             return undefined;
         };
 
-        const rawMinistry = getVal(['Ministry', 'Kementerian', 'Agency', 'Agensi']) || "Unknown Ministry";
-        // Normalize ministry name immediately to ensure consistency (merges duplicates like 'Kementerian Pendidikan Malaysia' and 'Kementerian Pendidikan')
-        const ministry = cleanMinistryName(String(rawMinistry));
-        
+        const ministry = getVal(['Ministry', 'Kementerian', 'Agency', 'Agensi']) || "Unknown Ministry";
         const vendor = getVal(['Vendor', 'Petender', 'Tenderer', 'Nama Syarikat', 'Company', 'Syarikat']) || "Unknown Vendor";
         const title = getVal(['Title', 'Tajuk', 'Description', 'Tajuk Projek', 'Project Title']) || "";
         const method = getVal(['Method', 'Kaedah', 'Procurement Method', 'Mode']) || "Open Tender";
@@ -218,17 +213,6 @@ function AppContent() {
     window.scrollTo(0, 0);
   };
 
-  // Handler for manual data upload from Admin view
-  const handleDataUpdate = (newData: Record[]) => {
-      // Normalize imported data just in case
-      const normalized = newData.map(r => ({
-          ...r,
-          ministry: cleanMinistryName(r.ministry)
-      }));
-      setRecords(normalized);
-      setViewConfig({ view: 'dashboard' });
-  };
-
   return (
     <Layout activeView={viewConfig.view} onNavigate={handleNavigate}>
       {/* Data Status Banner */}
@@ -299,12 +283,6 @@ function AppContent() {
             />
           )}
           
-          {viewConfig.view === 'upload' && (
-            <Upload 
-                onDataLoaded={handleDataUpdate}
-            />
-          )}
-
           {viewConfig.view === 'about' && (
             <About />
           )}
