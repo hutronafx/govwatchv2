@@ -157,8 +157,7 @@ const defaultTranslations = {
     // Footer Credits
     ftr_developer: "Lead Developer & Founder",
     ftr_role: "Student & Founder of",
-    ftr_built: "Built as an independent initiative to modernise Malaysian civic data.",
-    ftr_views: "Site Visits"
+    ftr_built: "Built as an independent initiative to modernise Malaysian civic data."
   },
   ms: {
     nav_dashboard: "Papan Pemuka",
@@ -314,8 +313,7 @@ const defaultTranslations = {
     // Footer Credits
     ftr_developer: "Pembangun Utama & Pengasas",
     ftr_role: "Pelajar & Pengasas",
-    ftr_built: "Dibina sebagai inisiatif bebas untuk memodenkan data sivik Malaysia.",
-    ftr_views: "Jumlah Pelawat"
+    ftr_built: "Dibina sebagai inisiatif bebas untuk memodenkan data sivik Malaysia."
   }
 };
 
