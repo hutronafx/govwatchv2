@@ -5,14 +5,12 @@ import { MinistryDetail } from './views/MinistryDetail';
 import { MinistryList } from './views/MinistryList';
 import { VendorList } from './views/VendorList';
 import { VendorDetail } from './views/VendorDetail';
-import { Upload } from './views/Upload';
 import { About } from './views/About';
 import { ViewConfig, Record } from './types';
 import { LanguageProvider } from './i18n';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cleanMinistryName } from './utils';
-import { INITIAL_RECORDS } from './data';
 
 // --- CONFIGURATION ---
 const DATA_SOURCES = [
@@ -181,7 +179,6 @@ function AppContent() {
     
     let loadedData: Record[] = [];
 
-    // Attempt External Fetch
     for (const source of DATA_SOURCES) {
         try {
             loadedData = await tryFetch(source.url, source.name);
@@ -195,13 +192,7 @@ function AppContent() {
     if (loadedData.length > 0) {
         setRecords(loadedData);
     } else {
-        // FALLBACK: Use local mock data if external fetch fails (e.g. in Preview Mode)
-        console.warn("External data load failed. Falling back to internal mock data.");
-        if (INITIAL_RECORDS && INITIAL_RECORDS.length > 0) {
-            setRecords(INITIAL_RECORDS);
-        } else {
-            setErrorMsg("Could not load data from GitHub or local server.");
-        }
+        setErrorMsg("Could not load data from GitHub or local server.");
     }
     
     setIsLoading(false);
@@ -224,17 +215,6 @@ function AppContent() {
   const handleVendorClick = (vendorName: string) => {
     setViewConfig({ view: 'vendor_detail', vendorName });
     window.scrollTo(0, 0);
-  };
-
-  // Handler for manual data upload from Admin view
-  const handleDataUpdate = (newData: Record[]) => {
-      // Normalize imported data just in case
-      const normalized = newData.map(r => ({
-          ...r,
-          ministry: cleanMinistryName(r.ministry)
-      }));
-      setRecords(normalized);
-      setViewConfig({ view: 'dashboard' });
   };
 
   return (
@@ -307,12 +287,6 @@ function AppContent() {
             />
           )}
           
-          {viewConfig.view === 'upload' && (
-            <Upload 
-                onDataLoaded={handleDataUpdate}
-            />
-          )}
-
           {viewConfig.view === 'about' && (
             <About />
           )}
