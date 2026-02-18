@@ -5,6 +5,7 @@ import { MinistryDetail } from './views/MinistryDetail';
 import { MinistryList } from './views/MinistryList';
 import { VendorList } from './views/VendorList';
 import { VendorDetail } from './views/VendorDetail';
+import { Upload } from './views/Upload';
 import { About } from './views/About';
 import { ViewConfig, Record } from './types';
 import { LanguageProvider } from './i18n';
@@ -217,6 +218,17 @@ function AppContent() {
     window.scrollTo(0, 0);
   };
 
+  // Handler for manual data upload from Admin view
+  const handleDataUpdate = (newData: Record[]) => {
+      // Normalize imported data just in case
+      const normalized = newData.map(r => ({
+          ...r,
+          ministry: cleanMinistryName(r.ministry)
+      }));
+      setRecords(normalized);
+      setViewConfig({ view: 'dashboard' });
+  };
+
   return (
     <Layout activeView={viewConfig.view} onNavigate={handleNavigate}>
       {/* Data Status Banner */}
@@ -287,6 +299,12 @@ function AppContent() {
             />
           )}
           
+          {viewConfig.view === 'upload' && (
+            <Upload 
+                onDataLoaded={handleDataUpdate}
+            />
+          )}
+
           {viewConfig.view === 'about' && (
             <About />
           )}

@@ -32,6 +32,39 @@ app.post('/api/update-data', (req, res) => {
   }
 });
 
+// API: View Tracker
+const VIEWS_FILE = path.join(__dirname, '../public/views.json');
+
+app.get('/api/views', (req, res) => {
+  try {
+    if (fs.existsSync(VIEWS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(VIEWS_FILE, 'utf-8'));
+      res.json(data);
+    } else {
+      res.json({ count: 0 });
+    }
+  } catch (err) {
+    console.error('View fetch error:', err);
+    res.status(500).json({ error: 'Failed to fetch views' });
+  }
+});
+
+app.post('/api/visit', (req, res) => {
+  try {
+    let count = 0;
+    if (fs.existsSync(VIEWS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(VIEWS_FILE, 'utf-8'));
+      count = data.count || 0;
+    }
+    count++;
+    fs.writeFileSync(VIEWS_FILE, JSON.stringify({ count }));
+    res.json({ count });
+  } catch (err) {
+    console.error('View update error:', err);
+    res.status(500).json({ error: 'Failed to update views' });
+  }
+});
+
 // API: Trigger Scraper
 app.post('/api/trigger-scrape', async (req, res) => {
   console.log('[Admin] Triggering server-side scraper...');
