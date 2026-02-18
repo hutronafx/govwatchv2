@@ -18,12 +18,40 @@ const toTitleCase = (str: string) => {
     return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
 };
 
+// Returns the canonical Malay name for grouping
+export const cleanMinistryName = (rawName: string): string => {
+  let normalized = rawName.toUpperCase().trim();
+  
+  // Remove "MALAYSIA" suffix if present (e.g., KEMENTERIAN PENDIDIKAN MALAYSIA -> KEMENTERIAN PENDIDIKAN)
+  if (normalized.endsWith(" MALAYSIA")) {
+      normalized = normalized.substring(0, normalized.length - 9).trim();
+  }
+
+  // Canonical Mappings for known inconsistencies
+  if (normalized === "KEMENTERIAN PENDIDIKAN" || (normalized.includes("PENDIDIKAN") && !normalized.includes("TINGGI"))) return "Kementerian Pendidikan";
+  if (normalized.includes("KESIHATAN")) return "Kementerian Kesihatan";
+  if (normalized.includes("KEWANGAN")) return "Kementerian Kewangan";
+  if (normalized.includes("PERTAHANAN")) return "Kementerian Pertahanan";
+  if (normalized.includes("DALAM NEGERI") && !normalized.includes("PERDAGANGAN")) return "Kementerian Dalam Negeri";
+  if (normalized.includes("PENGANGKUTAN")) return "Kementerian Pengangkutan";
+  if (normalized.includes("KERJA RAYA") && !normalized.includes("JABATAN")) return "Kementerian Kerja Raya";
+  if (normalized.includes("JABATAN KERJA RAYA")) return "Jabatan Kerja Raya";
+  if (normalized.includes("PERTANIAN")) return "Kementerian Pertanian & Keterjaminan Makanan";
+  if (normalized.includes("KOMUNIKASI") && !normalized.includes("DIGITAL")) return "Kementerian Komunikasi";
+  if (normalized.includes("DIGITAL")) return "Kementerian Digital";
+  
+  return toTitleCase(normalized);
+};
+
 // Returns the display name based on language preference
 export const getMinistryLabel = (rawName: string, lang: 'en' | 'ms'): string => {
+  // Normalize first to ensure consistent translation lookups
+  const cleaned = cleanMinistryName(rawName);
+
   if (lang === 'ms') {
-    return toTitleCase(rawName);
+    return cleaned;
   }
-  return translateMinistry(rawName);
+  return translateMinistry(cleaned);
 };
 
 export const translateMinistry = (malayName: string): string => {
@@ -39,6 +67,7 @@ export const translateMinistry = (malayName: string): string => {
     "KEMENTERIAN KERJA RAYA": "Ministry of Works (KKR)",
     "JABATAN KERJA RAYA": "Public Works Department (JKR)",
     "KEMENTERIAN PERTANIAN DAN KETERJAMINAN MAKANAN": "Ministry of Agriculture (KPKM)",
+    "KEMENTERIAN PERTANIAN": "Ministry of Agriculture (KPKM)",
     "KEMENTERIAN EKONOMI": "Ministry of Economy",
     "KEMENTERIAN KEMAJUAN DESA DAN WILAYAH": "Ministry of Rural & Regional Dev",
     "KEMENTERIAN SAINS, TEKNOLOGI DAN INOVASI": "Ministry of Science & Tech (MOSTI)",
@@ -50,7 +79,17 @@ export const translateMinistry = (malayName: string): string => {
     "KEMENTERIAN LUAR NEGERI": "Ministry of Foreign Affairs (Wisma Putra)",
     "KEMENTERIAN PENDIDIKAN TINGGI": "Ministry of Higher Education (MOHE)",
     "KEMENTERIAN PERUMAHAN DAN KERAJAAN TEMPATAN": "Ministry of Housing (KPKT)",
-    "JABATAN PERDANA MENTERI": "Prime Minister's Department (JPM)"
+    "JABATAN PERDANA MENTERI": "Prime Minister's Department (JPM)",
+    "POLIS DIRAJA MALAYSIA": "Royal Malaysia Police (PDRM)",
+    "POLIS DIRAJA": "Royal Malaysia Police (PDRM)",
+    "JABATAN BOMBA DAN PENYELAMAT MALAYSIA": "Fire & Rescue Department",
+    "JABATAN BOMBA": "Fire & Rescue Department",
+    "KEMENTERIAN PEMBANGUNAN WANITA, KELUARGA DAN MASYARAKAT": "Ministry of Women, Family & Community",
+    "KEMENTERIAN PERDAGANGAN DALAM NEGERI DAN KOS SARA HIDUP": "Ministry of Domestic Trade (KPDN)",
+    "KEMENTERIAN PERLADANGAN DAN KOMODITI": "Ministry of Plantation & Commodities",
+    "KEMENTERIAN SUMBER ASLI, ALAM SEKITAR DAN PERUBAHAN IKLIM": "Ministry of Natural Resources (NRECC)",
+    "KEMENTERIAN TENAGA DAN SUMBER ASLI": "Ministry of Energy & Natural Resources",
+    "KEMENTERIAN WILAYAH PERSEKUTUAN": "Ministry of Federal Territories"
   };
 
   // Direct match
@@ -59,8 +98,18 @@ export const translateMinistry = (malayName: string): string => {
   // Partial matches for messy data
   if (normalized.includes("KESIHATAN")) return "Ministry of Health (MOH)";
   if (normalized.includes("PENDIDIKAN") && !normalized.includes("TINGGI")) return "Ministry of Education (MOE)";
+  if (normalized.includes("PENDIDIKAN TINGGI")) return "Ministry of Higher Education (MOHE)";
   if (normalized.includes("POLIS DIRAJA")) return "Royal Malaysia Police (PDRM)";
   if (normalized.includes("JABATAN BOMBA")) return "Fire & Rescue Department";
+  if (normalized.includes("KEWANGAN")) return "Ministry of Finance (MOF)";
+  if (normalized.includes("DALAM NEGERI") && !normalized.includes("PERDAGANGAN")) return "Ministry of Home Affairs (KDN)";
+  if (normalized.includes("PERTAHANAN")) return "Ministry of Defence (MINDEF)";
+  if (normalized.includes("PENGANGKUTAN")) return "Ministry of Transport (MOT)";
+  if (normalized.includes("KERJA RAYA")) return "Ministry of Works (KKR)";
+  if (normalized.includes("PERTANIAN")) return "Ministry of Agriculture (KPKM)";
+  if (normalized.includes("EKONOMI")) return "Ministry of Economy";
+  if (normalized.includes("KOMUNIKASI")) return "Ministry of Communications";
+  if (normalized.includes("SUMBER MANUSIA")) return "Ministry of Human Resources (KESUMA)";
 
   // Fallback: title case the malay name
   return toTitleCase(normalized);

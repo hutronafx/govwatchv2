@@ -6,14 +6,17 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "vite preview"
+    "start": "node backend/scheduler.js"
   },
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "lucide-react": "^0.344.0",
     "recharts": "^2.12.2",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3",
+    "puppeteer": "^22.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.64",
