@@ -60,64 +60,69 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeView, onNavigate
 
   return (
     <div className="min-h-screen bg-gw-bg text-gw-text font-sans flex flex-col">
-      <nav className="sticky top-0 z-50 bg-gw-bg/95 backdrop-blur border-b border-gw-border">
+      <nav className="sticky top-0 z-50 bg-gw-bg/95 backdrop-blur border-b border-gw-border shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => onNavigate('dashboard')}>
               <div className="bg-gw-success/10 p-2 rounded-lg border border-gw-success/20">
                 <Eye className="w-6 h-6 text-gw-success" />
               </div>
-              <span className="font-bold text-xl tracking-tight text-white">GovWatch <span className="text-gw-muted font-normal">MY</span></span>
+              <span className="font-bold text-lg md:text-xl tracking-tight text-white">GovWatch <span className="text-gw-muted font-normal">MY</span></span>
             </div>
             
             <div className="flex items-center space-x-1 md:space-x-2">
               <button
                 onClick={() => onNavigate('dashboard')}
                 className={navItemClass(activeView === 'dashboard')}
+                title={t.nav_dashboard}
               >
-                <LayoutDashboard className="w-4 h-4 mr-2" />
+                <LayoutDashboard className="w-5 h-5 md:w-4 md:h-4 md:mr-2" />
                 <span className="hidden md:inline">{t.nav_dashboard}</span>
               </button>
               <button
                 onClick={() => onNavigate('ministry_list')}
                 className={navItemClass(activeView.includes('ministry'))}
+                title={t.nav_ministries}
               >
-                <Building2 className="w-4 h-4 mr-2" />
+                <Building2 className="w-5 h-5 md:w-4 md:h-4 md:mr-2" />
                 <span className="hidden md:inline">{t.nav_ministries}</span>
               </button>
               <button
                 onClick={() => onNavigate('vendor_list')}
                 className={navItemClass(activeView === 'vendor_list')}
+                title={t.nav_vendors}
               >
-                <Store className="w-4 h-4 mr-2" />
+                <Store className="w-5 h-5 md:w-4 md:h-4 md:mr-2" />
                 <span className="hidden md:inline">{t.nav_vendors}</span>
               </button>
               <button
                 onClick={() => onNavigate('about')}
                 className={navItemClass(activeView === 'about')}
+                title={t.nav_about}
               >
-                <Info className="w-4 h-4 mr-2" />
+                <Info className="w-5 h-5 md:w-4 md:h-4 md:mr-2" />
                 <span className="hidden md:inline">{t.nav_about}</span>
               </button>
               
-              <div className="w-px h-6 bg-gw-border mx-2"></div>
+              <div className="w-px h-6 bg-gw-border mx-1 md:mx-2"></div>
               
               {/* Language Toggle */}
               <button 
                 onClick={toggleLanguage}
-                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold text-gw-muted hover:text-white hover:bg-gw-card/50 transition-colors"
+                className="flex items-center gap-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-bold text-gw-muted hover:text-white hover:bg-gw-card/50 transition-colors"
                 title="Switch Language"
               >
-                <Languages className="w-4 h-4" />
-                <span className={language === 'en' ? 'text-white' : 'text-gw-muted'}>EN</span>
-                <span className="text-gw-border">|</span>
-                <span className={language === 'ms' ? 'text-white' : 'text-gw-muted'}>BM</span>
+                <Languages className="w-4 h-4 md:hidden" />
+                <span className={`hidden md:inline ${language === 'en' ? 'text-white' : 'text-gw-muted'}`}>EN</span>
+                <span className="text-gw-border hidden md:inline">|</span>
+                <span className={`hidden md:inline ${language === 'ms' ? 'text-white' : 'text-gw-muted'}`}>BM</span>
+                <span className="md:hidden font-mono uppercase">{language}</span>
               </button>
             </div>
           </div>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 flex-grow">
         {children}
       </main>
       <footer className="border-t border-gw-border py-8 mt-8 bg-gw-card/30">

@@ -39,19 +39,19 @@ export const MinistryList: React.FC<MinistryListProps> = ({ records, onSelectMin
   return (
     <div className="animate-fadeIn space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+        <div className="text-center md:text-left">
+          <h1 className="text-2xl font-bold text-white flex items-center justify-center md:justify-start gap-2">
             <Building2 className="w-8 h-8 text-gw-success" />
             {t.min_title}
           </h1>
           <p className="text-gw-muted mt-1">{t.min_subtitle}</p>
         </div>
-        <div className="relative">
+        <div className="relative w-full md:w-auto">
              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gw-muted" />
              <input 
                 type="text" 
                 placeholder={t.min_search}
-                className="bg-gw-card border border-gw-border rounded-full pl-10 pr-4 py-2 text-sm text-gw-text focus:border-gw-success focus:outline-none w-64 shadow-sm"
+                className="bg-gw-card border border-gw-border rounded-full pl-10 pr-4 py-2 text-sm text-gw-text focus:border-gw-success focus:outline-none w-full md:w-64 shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
              />

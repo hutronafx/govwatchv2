@@ -32,10 +32,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   const [sortBy, setSortBy] = useState<'date' | 'value'>('date');
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [filterMethod, setFilterMethod] = useState<string>('All');
+  const [isMobile, setIsMobile] = useState(false);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+
+  // Responsive Check
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Reset page when filters change
   useEffect(() => {
@@ -182,22 +191,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn pb-12">
+    <div className="space-y-6 md:space-y-8 animate-fadeIn pb-12">
       
       {/* Header with Refresh & Last Updated */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         
         {/* Data Note */}
-        <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-4 py-2 rounded-lg">
-             <Info className="w-4 h-4 text-blue-400" />
-             <span className="text-sm text-blue-200 font-medium">
+        <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-4 py-2 rounded-lg w-full md:w-auto">
+             <Info className="w-4 h-4 text-blue-400 shrink-0" />
+             <span className="text-xs md:text-sm text-blue-200 font-medium leading-tight">
                 {t.lbl_data_period}
              </span>
         </div>
 
-        <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
+        <div className="flex flex-col md:flex-row items-end md:items-center gap-4 w-full md:w-auto">
             {/* Last Updated Badge */}
-             <div className="flex items-center gap-2 text-xs text-gw-muted bg-gw-card px-3 py-2 rounded-lg border border-gw-border">
+             <div className="flex items-center gap-2 text-xs text-gw-muted bg-gw-card px-3 py-2 rounded-lg border border-gw-border w-full md:w-auto justify-center md:justify-start">
                 <Clock className="w-3 h-3" />
                 {t.lbl_updated}: {displayDateStr}
              </div>
@@ -205,7 +214,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         <StatCard label={t.kpi_total_value} value={formatMoney(totalSpend, language)} />
         <StatCard label={t.kpi_works} value={formatMoney(worksSpend, language)} isAlert />
         <StatCard label={t.kpi_supplies} value={formatMoney(suppliesSpend + servicesSpend, language)} />
@@ -214,17 +223,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[400px]">
          {/* Bar Chart (Horizontal) */}
-         <div className="lg:col-span-2 bg-gw-card border border-gw-border rounded-lg p-6 flex flex-col">
+         <div className="lg:col-span-2 bg-gw-card border border-gw-border rounded-lg p-4 md:p-6 flex flex-col h-[400px] md:h-auto">
             <h3 className="text-lg font-bold mb-4 text-white">{t.chart_top_ministries}</h3>
-            <div className="flex-1">
+            <div className="flex-1 min-h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barChartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <BarChart data={barChartData} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                         <XAxis type="number" hide />
                         <YAxis 
                             dataKey="name" 
                             type="category" 
-                            width={180} 
-                            tick={{ fill: '#e5e7ef', fontSize: 10, width: 170 }}
+                            width={isMobile ? 100 : 180} 
+                            tick={{ fill: '#e5e7ef', fontSize: isMobile ? 9 : 10, width: isMobile ? 90 : 170 }}
                             interval={0}
                         />
                         <Tooltip cursor={{fill: '#223055'}} content={<CustomTooltip />} />
@@ -239,17 +248,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
          </div>
 
          {/* Pie Chart */}
-         <div className="bg-gw-card border border-gw-border rounded-lg p-6 flex flex-col">
+         <div className="bg-gw-card border border-gw-border rounded-lg p-4 md:p-6 flex flex-col h-[350px] md:h-auto">
             <h3 className="text-lg font-bold mb-4 text-white">{t.chart_categories}</h3>
-            <div className="flex-1">
+            <div className="flex-1 min-h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
                             data={categoryData}
                             cx="50%"
                             cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
+                            innerRadius={isMobile ? 40 : 60}
+                            outerRadius={isMobile ? 60 : 80}
                             paddingAngle={5}
                             dataKey="value"
                         >
@@ -269,18 +278,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
       <div className="bg-gw-card border border-gw-border rounded-lg overflow-hidden flex flex-col">
           {/* Table Controls */}
           <div className="p-4 border-b border-gw-border flex flex-col xl:flex-row justify-between items-center gap-4 bg-gw-bg/30">
-            <div className="flex flex-col md:flex-row items-center gap-2 w-full xl:w-auto">
-                 <h2 className="text-lg font-bold text-white flex items-center gap-2 mr-2">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full xl:w-auto">
+                 <h2 className="text-lg font-bold text-white flex items-center gap-2 mr-2 shrink-0">
                     <FileText className="w-5 h-5" /> {t.table_recent_awards}
                  </h2>
-                 <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start w-full md:w-auto">
+                 <div className="grid grid-cols-2 md:flex flex-wrap items-center gap-2 w-full md:w-auto">
                     {/* Sort Dropdown */}
-                    <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1">
-                        <ArrowUpDown className="w-4 h-4 text-gw-muted mr-2" />
+                    <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1 col-span-1">
+                        <ArrowUpDown className="w-4 h-4 text-gw-muted mr-1 md:mr-2" />
                         <select 
                             value={sortBy} 
                             onChange={(e) => setSortBy(e.target.value as any)}
-                            className="bg-transparent text-sm text-gw-text focus:outline-none"
+                            className="bg-transparent text-xs md:text-sm text-gw-text focus:outline-none w-full"
                         >
                             <option value="date">{t.val_newest}</option>
                             <option value="value">{t.val_highest}</option>
@@ -288,12 +297,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                     </div>
 
                     {/* Category Filter */}
-                    <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1">
-                        <Filter className="w-4 h-4 text-gw-muted mr-2" />
+                    <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1 col-span-1">
+                        <Filter className="w-4 h-4 text-gw-muted mr-1 md:mr-2" />
                         <select 
                             value={filterCategory} 
                             onChange={(e) => setFilterCategory(e.target.value)}
-                            className="bg-transparent text-sm text-gw-text focus:outline-none max-w-[120px]"
+                            className="bg-transparent text-xs md:text-sm text-gw-text focus:outline-none w-full"
                         >
                             <option value="All">{t.opt_all_cat}</option>
                             <option value="Kerja">{t.opt_works}</option>
@@ -303,12 +312,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                     </div>
 
                     {/* Method Filter */}
-                    <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1">
-                        <Briefcase className="w-4 h-4 text-gw-muted mr-2" />
+                    <div className="flex items-center bg-gw-bg border border-gw-border rounded px-2 py-1 col-span-2 md:col-auto">
+                        <Briefcase className="w-4 h-4 text-gw-muted mr-1 md:mr-2" />
                         <select 
                             value={filterMethod} 
                             onChange={(e) => setFilterMethod(e.target.value)}
-                            className="bg-transparent text-sm text-gw-text focus:outline-none"
+                            className="bg-transparent text-xs md:text-sm text-gw-text focus:outline-none w-full"
                         >
                             <option value="All">{t.opt_all_methods}</option>
                             <option value="Open Tender">{t.val_open_tender}</option>
@@ -344,44 +353,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
             <table className="w-full text-left text-sm">
               <thead className="bg-gw-bg/95">
                 <tr>
-                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">{t.th_date}</th>
-                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">{t.th_ministry}</th>
-                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">{t.th_vendor}</th>
-                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right">{t.th_value}</th>
-                  <th className="px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right">{t.th_details}</th>
+                  <th className="px-4 md:px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider">{t.th_date}</th>
+                  <th className="px-4 md:px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider max-w-[150px]">{t.th_ministry}</th>
+                  <th className="px-4 md:px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider max-w-[150px]">{t.th_vendor}</th>
+                  <th className="px-4 md:px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right">{t.th_value}</th>
+                  <th className="px-4 md:px-6 py-4 font-bold text-gw-muted uppercase text-xs tracking-wider text-right hidden sm:table-cell">{t.th_details}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gw-border">
                 {paginatedRecords.map((r) => (
                   <tr key={r.id} className="hover:bg-gw-bg/50 transition-colors group">
-                    <td className="px-6 py-4 whitespace-nowrap text-gw-muted font-mono text-xs">{r.date}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-gw-muted font-mono text-xs">{r.date}</td>
+                    <td className="px-4 md:px-6 py-4">
                       <button 
                         onClick={() => onMinistryClick(r.ministry)}
                         className="text-white hover:text-gw-success font-medium flex flex-col items-start transition-colors text-left"
                       >
-                        <span className="line-clamp-1 max-w-[250px] font-bold" title={r.ministry}>
+                        <span className="line-clamp-2 md:line-clamp-1 max-w-[120px] md:max-w-[250px] font-bold text-xs md:text-sm" title={r.ministry}>
                             {getMinistryLabel(r.ministry, language)}
                         </span>
-                        <span className="text-[10px] text-gw-muted flex items-center gap-1">
-                            {r.ministry} 
-                            <ArrowUpRight className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </span>
-                        {r.title && <span className="text-[10px] text-gw-muted/70 mt-1 line-clamp-1 max-w-[250px] italic">{r.title}</span>}
+                        {r.title && <span className="text-[10px] text-gw-muted/70 mt-1 line-clamp-1 max-w-[120px] md:max-w-[250px] italic hidden sm:inline">{r.title}</span>}
                       </button>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 md:px-6 py-4">
                       <button
                         onClick={() => onVendorClick(r.vendor)}
-                        className="text-gw-muted hover:text-white transition-colors text-left truncate max-w-[200px] flex items-center gap-1 group-vendor"
+                        className="text-gw-muted hover:text-white transition-colors text-left truncate max-w-[100px] md:max-w-[200px] flex items-center gap-1 group-vendor text-xs md:text-sm"
                         title={r.vendor}
                       >
                         <span className="truncate">{r.vendor}</span>
-                        <ArrowUpRight className="w-2 h-2 opacity-0 group-vendor-hover:opacity-100 transition-opacity" />
                       </button>
                     </td>
-                    <td className="px-6 py-4 text-right font-bold text-gw-text font-mono">{formatMoney(r.amount, language)}</td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap flex flex-col gap-1 items-end justify-center h-full">
+                    <td className="px-4 md:px-6 py-4 text-right font-bold text-gw-text font-mono text-xs md:text-sm">{formatMoney(r.amount, language)}</td>
+                    <td className="px-4 md:px-6 py-4 text-right whitespace-nowrap flex-col gap-1 items-end justify-center h-full hidden sm:flex">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
                          (r.method || '').toLowerCase().includes('direct') || (r.method || '').toLowerCase().includes('rundingan')
                          ? 'bg-gw-danger/10 text-gw-danger border-gw-danger/20'
@@ -405,8 +409,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
           </div>
           
           {/* Pagination Controls */}
-          <div className="p-4 border-t border-gw-border bg-gw-bg/30 flex items-center justify-between">
-             <div className="text-xs text-gw-muted">
+          <div className="p-4 border-t border-gw-border bg-gw-bg/30 flex flex-col md:flex-row items-center justify-between gap-4">
+             <div className="text-xs text-gw-muted text-center md:text-left">
                 Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredRecords.length)} to {Math.min(currentPage * itemsPerPage, filteredRecords.length)} of {filteredRecords.length} results
              </div>
              
@@ -414,9 +418,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                 <button 
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="p-1 rounded bg-gw-bg border border-gw-border text-gw-muted hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 md:p-1 rounded bg-gw-bg border border-gw-border text-gw-muted hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-5 h-5 md:w-4 md:h-4" />
                 </button>
                 <span className="text-xs text-gw-text font-mono px-2">
                     Page {currentPage} of {Math.max(1, totalPages)}
@@ -424,9 +428,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                 <button 
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages || totalPages === 0}
-                  className="p-1 rounded bg-gw-bg border border-gw-border text-gw-muted hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 md:p-1 rounded bg-gw-bg border border-gw-border text-gw-muted hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-5 h-5 md:w-4 md:h-4" />
                 </button>
              </div>
           </div>

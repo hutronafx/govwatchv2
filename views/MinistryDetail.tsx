@@ -83,7 +83,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
       </button>
 
       {/* HEADER CARD */}
-      <div className="bg-gw-card border border-gw-border rounded-lg p-8 shadow-lg">
+      <div className="bg-gw-card border border-gw-border rounded-lg p-5 md:p-8 shadow-lg">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
                 <div className="flex items-center gap-3 mb-2">
@@ -92,7 +92,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                     </div>
                     <span className="text-gw-muted uppercase tracking-wider text-sm font-semibold">{t.det_profile}</span>
                 </div>
-                <h1 className="text-3xl font-bold text-white">{getMinistryLabel(ministryName, language)}</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">{getMinistryLabel(ministryName, language)}</h1>
                 <p className="text-gw-muted text-sm mt-1">{ministryName}</p>
             </div>
             <div className="text-left md:text-right">
@@ -104,10 +104,10 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
       </div>
 
       {/* ANALYTICS ROW (OpenTender Style) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           
           {/* 1. INTEGRITY / RISK PROFILE */}
-          <div className="bg-gw-card border border-gw-border rounded-lg p-6 flex flex-col h-full">
+          <div className="bg-gw-card border border-gw-border rounded-lg p-5 md:p-6 flex flex-col h-full">
              <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5 text-gw-danger" />
@@ -183,7 +183,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
           </div>
 
           {/* 2. MARKET CONCENTRATION (TOP VENDORS) */}
-          <div className="bg-gw-card border border-gw-border rounded-lg p-6 flex flex-col h-full">
+          <div className="bg-gw-card border border-gw-border rounded-lg p-5 md:p-6 flex flex-col h-full">
              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <PieChartIcon className="w-5 h-5 text-blue-400" />
@@ -220,7 +220,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
         <h3 className="text-xl font-bold text-white mb-4">{t.det_contract_history}</h3>
         <div className="grid grid-cols-1 gap-4">
             {filteredRecords.map((r) => (
-                <div key={r.id} className="bg-gw-card border border-gw-border rounded-lg p-5 hover:border-gw-muted/50 transition-colors relative">
+                <div key={r.id} className="bg-gw-card border border-gw-border rounded-lg p-4 md:p-5 hover:border-gw-muted/50 transition-colors relative">
                     {r.sourceUrl && (
                         <a 
                             href={r.sourceUrl} 
@@ -234,8 +234,8 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                     )}
                     <div className="flex flex-col md:flex-row justify-between md:items-start gap-4 mb-4 pr-8">
                         <div className="flex-1">
-                            <h3 className="text-lg font-bold text-white mb-1">{r.vendor}</h3>
-                            <div className="flex items-center gap-4 text-sm text-gw-muted">
+                            <h3 className="text-base md:text-lg font-bold text-white mb-1 line-clamp-2">{r.vendor}</h3>
+                            <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs md:text-sm text-gw-muted">
                                 <span className="flex items-center gap-1">
                                     <Calendar className="w-3 h-3" /> {r.date}
                                 </span>
@@ -244,7 +244,7 @@ export const MinistryDetail: React.FC<MinistryDetailProps> = ({ ministryName, re
                                 </span>
                             </div>
                         </div>
-                        <div className={`text-xl font-bold ${r.method.toLowerCase().includes('rundingan') || r.method.toLowerCase().includes('direct') ? 'text-gw-danger' : 'text-gw-success'}`}>
+                        <div className={`text-lg md:text-xl font-bold ${r.method.toLowerCase().includes('rundingan') || r.method.toLowerCase().includes('direct') ? 'text-gw-danger' : 'text-gw-success'}`}>
                             {formatMoney(r.amount, language)}
                         </div>
                     </div>
