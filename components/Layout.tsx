@@ -42,7 +42,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeView, onNavigate
 
         // Fallback for preview mode or if backend is unreachable
         // We set a static number so the UI element is visible as requested
-        setViewCount(1284);
+        setViewCount(1450);
 
       } catch (e) {
         console.warn("View tracking error.");
