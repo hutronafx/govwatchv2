@@ -79,9 +79,6 @@ async function scrape() {
           '--disable-web-security',
           '--disable-blink-features=AutomationControlled',
           '--disable-features=IsolateOrigins,site-per-process',
-          // Note: Re-enabled images in case they are needed for layout, 
-          // but if bandwidth is issue, might need to disable again.
-          // Keeping disabled for speed.
           '--blink-settings=imagesEnabled=false' 
       ]
     });
@@ -114,7 +111,6 @@ async function scrape() {
             if (type && (type.includes('json') || type.includes('plain')) && !url.includes('google')) {
                 const text = await response.text();
                 if (text.includes('amount') || text.includes('nilai')) {
-                    // log(`[API] Captured potential JSON data from: ${url}`);
                     try {
                         const json = JSON.parse(text);
                         const extracted = normalizeApiData(json, url);
@@ -129,7 +125,6 @@ async function scrape() {
     const navigate = async (url, label) => {
         log(`Navigating to ${label} (Card Mode)...`);
         try {
-            // Using load instead of networkidle to be faster
             await page.goto(url, { waitUntil: 'domcontentloaded', timeout: TIMEOUT_MS });
             
             // Wait for cards to likely appear
@@ -140,7 +135,6 @@ async function scrape() {
             await page.screenshot({ path: path.join(LOG_DIR, `${label}.png`) });
         } catch (e) {
             log(`[WARN] ${label} navigation issue: ${e.message}`);
-            // Even if it timed out, we try to scrape what loaded
             try { await page.screenshot({ path: path.join(LOG_DIR, `${label}_timeout.png`) }); } catch {}
         }
     };
@@ -158,7 +152,6 @@ async function scrape() {
 
     if (allRecords.length === 0) {
         log("!!! FAILURE: 0 RECORDS FOUND !!!");
-        log("Tip: Use the Browser Script in the Upload tab.");
         const html = await page.content();
         await fs.writeFile(path.join(LOG_DIR, 'final_dom_dump.html'), html);
     } else {
@@ -194,6 +187,17 @@ function normalizeApiData(json, sourceUrl) {
                         if (typeof amountRaw === 'number') amount = amountRaw;
                         else if (typeof amountRaw === 'string') amount = parseFloat(amountRaw.replace(/[^0-9.]/g, ''));
 
+                        // Construct Link ID
+                        const id = item._id || item.id || null;
+                        let contractUrl = null;
+                        if (id) {
+                            if (sourceUrl.includes('direct')) {
+                                contractUrl = `https://myprocurement.treasury.gov.my/archive/direct-negotiations/${id}`;
+                            } else {
+                                contractUrl = `https://myprocurement.treasury.gov.my/archive/results-tender/${id}`;
+                            }
+                        }
+
                         if (amount > 0) {
                             results.push({
                                 ministry, vendor, amount,
@@ -201,7 +205,9 @@ function normalizeApiData(json, sourceUrl) {
                                 category: "General",
                                 date: String(date).split('T')[0], 
                                 reason: item.reason || null, 
-                                sourceUrl, crawledAt: now
+                                sourceUrl, 
+                                contractUrl,
+                                crawledAt: now
                             });
                         }
                     }
@@ -226,50 +232,37 @@ async function scrapeVisual(page) {
         // Heuristic: A card usually contains a price (RM) and a Ministry/Vendor label
         const potentialCards = allDivs.filter(div => {
             const txt = div.innerText || "";
-            // Too short = likely just a label or button
             if (txt.length < 30) return false;
-            // Too long = likely the whole body container
             if (txt.length > 2000) return false;
-            
-            // Must have currency
             if (!txt.includes("RM")) return false;
-            
-            // Must have some entity keyword
             const keywords = ["Kementerian", "Ministry", "Jabatan", "Syarikat", "Vendor", "Petender"];
             return keywords.some(kw => txt.includes(kw));
         });
 
-        // Parse each potential card
         potentialCards.forEach(card => {
             const text = card.innerText;
-            
-            // 1. Extract Amount
             const moneyMatch = text.match(/RM\s?([0-9,.]+)/i);
-            if (!moneyMatch) return; // Skip if no price found in this specific div
+            if (!moneyMatch) return;
             const amount = parseFloat(moneyMatch[1].replace(/,/g, ''));
             if (isNaN(amount) || amount === 0) return;
 
-            // 2. Extract Ministry
             let ministry = "Unknown Ministry";
-            // Look for "Kementerian ..." up to newline
             const minMatch = text.match(/(?:Kementerian|Ministry|Jabatan|Agency)(.*?)(?:\n|$)/i);
             if (minMatch) ministry = minMatch[0].trim();
 
-            // 3. Extract Vendor
             let vendor = "Unknown Vendor";
             const venMatch = text.match(/(?:Syarikat|Vendor|Petender|Oleh)(.*?)(?:\n|$)/i);
             if (venMatch) vendor = venMatch[0].replace(/(?:Syarikat|Vendor|Petender|Oleh)[:\s]*/i, '').trim();
 
-            // 4. Extract Date
             let date = new Date().toISOString().split('T')[0];
             const dateMatch = text.match(/(\d{2}[-/.]\d{2}[-/.]\d{4})/);
-            if (dateMatch) {
-                // simple normalization if needed, mostly just take the string
-                date = dateMatch[0];
-            }
+            if (dateMatch) date = dateMatch[0];
 
-            // Deduplicate: If we already have a record with this exact amount and vendor (approx), skip
-            // (Because nested divs might triggers this multiple times for the same card)
+            // Look for link in card
+            let contractUrl = null;
+            const link = card.querySelector('a');
+            if(link && link.href) contractUrl = link.href;
+
             const isDuplicate = results.some(r => r.amount === amount && r.vendor === vendor);
             
             if (!isDuplicate && ministry.length < 150 && vendor.length < 150) {
@@ -281,6 +274,7 @@ async function scrapeVisual(page) {
                     category: "General",
                     date,
                     sourceUrl: document.location.href,
+                    contractUrl: contractUrl,
                     crawledAt: new Date().toISOString()
                 });
             }

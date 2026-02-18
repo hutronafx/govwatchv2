@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 // BASELINE: The estimated count before we added persistence.
 // We add the persistent counter value to this number.
 const BASELINE_VIEWS = 1450; 
-const COUNTER_NAMESPACE = 'govwatch-my-v2'; // Unique namespace for this app
+const COUNTER_NAMESPACE = 'govwatch-my-v3'; // Changed namespace to v3 to ensure clean start with new provider
 const COUNTER_KEY = 'visits';
 
 app.use(express.json({ limit: '50mb' }));
@@ -25,27 +25,33 @@ app.use('/debug_logs', express.static(path.join(__dirname, '../public/debug_logs
 
 // --- PERSISTENCE HELPER ---
 // Uses a free external counter API to persist data across deployments
+// Switched to counterapi.dev as it is often more reliable for simple counting
 async function getPersistentCount(increment = false) {
     try {
-        const endpoint = increment ? 'hit' : 'get';
-        const url = `https://api.countapi.xyz/${endpoint}/${COUNTER_NAMESPACE}/${COUNTER_KEY}`;
+        const baseUrl = 'https://api.counterapi.dev/v1';
+        const url = increment 
+            ? `${baseUrl}/${COUNTER_NAMESPACE}/${COUNTER_KEY}/up`
+            : `${baseUrl}/${COUNTER_NAMESPACE}/${COUNTER_KEY}`;
         
         // Note: fetch is available globally in Node 18+
         const res = await fetch(url);
         
-        if (res.status === 404 && !increment) {
-            // Key doesn't exist yet, return 0
-            return 0;
+        if (!res.ok) {
+            // If key/namespace doesn't exist, counterapi.dev might return 400 or 404 on GET
+            // On increment (up), it usually auto-creates.
+            if ((res.status === 404 || res.status === 400) && !increment) {
+                return 0;
+            }
+            // If we try to increment and it fails, we throw to trigger fallback
+            throw new Error(`API Error: ${res.status}`);
         }
         
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
-        
         const data = await res.json();
-        return data.value || 0;
+        return data.count || 0;
     } catch (e) {
         console.warn('External persistence warning:', e.message);
-        // Fallback: If API fails, we return 0 so we at least show the baseline
-        return 0;
+        // Return null to indicate failure so we can use local fallback
+        return null;
     }
 }
 
@@ -65,38 +71,59 @@ app.post('/api/update-data', (req, res) => {
 
 // API: View Tracker
 app.get('/api/views', async (req, res) => {
-  try {
-    // Get external count (persistent)
-    const externalCount = await getPersistentCount(false);
-    
-    // Total = Baseline + New Persistent Visits
-    const totalCount = BASELINE_VIEWS + externalCount;
-    
-    res.json({ count: totalCount });
-  } catch (err) {
-    console.error('View fetch error:', err);
-    res.json({ count: BASELINE_VIEWS });
+  let count = BASELINE_VIEWS;
+  
+  // 1. Try External Persistence
+  const externalCount = await getPersistentCount(false);
+  
+  if (externalCount !== null) {
+      count += externalCount;
+  } else {
+      // 2. Fallback to Local File (if external fails)
+      // This is useful if the external API is down but we have a local count in the ephemeral FS
+      try {
+          const VIEWS_FILE = path.join(__dirname, '../public/views.json');
+          if (fs.existsSync(VIEWS_FILE)) {
+              const data = JSON.parse(fs.readFileSync(VIEWS_FILE, 'utf-8'));
+              if (data.count > count) count = data.count;
+          }
+      } catch (e) { /* ignore */ }
   }
+  
+  res.json({ count });
 });
 
 app.post('/api/visit', async (req, res) => {
-  try {
-    // Increment external count
-    const externalCount = await getPersistentCount(true);
-    
-    const totalCount = BASELINE_VIEWS + externalCount;
-    
-    // We also write to local file as a backup/cache for this session
-    try {
-        const VIEWS_FILE = path.join(__dirname, '../public/views.json');
-        fs.writeFileSync(VIEWS_FILE, JSON.stringify({ count: totalCount }));
-    } catch (e) { /* ignore write error on ephemeral fs */ }
+  let count = BASELINE_VIEWS;
+  let externalSuccess = false;
 
-    res.json({ count: totalCount });
-  } catch (err) {
-    console.error('View update error:', err);
-    res.json({ count: BASELINE_VIEWS });
+  // 1. Increment External
+  const externalCount = await getPersistentCount(true);
+  
+  if (externalCount !== null) {
+      count += externalCount;
+      externalSuccess = true;
+  } else {
+      // Fallback: Read local, increment, return
+      try {
+          const VIEWS_FILE = path.join(__dirname, '../public/views.json');
+          if (fs.existsSync(VIEWS_FILE)) {
+              const data = JSON.parse(fs.readFileSync(VIEWS_FILE, 'utf-8'));
+              if (data.count > count) count = data.count;
+          }
+      } catch (e) { /* ignore */ }
+      
+      // Manually increment since external failed
+      count++;
   }
+
+  // 2. Always write to local file as backup/cache for this session
+  try {
+      const VIEWS_FILE = path.join(__dirname, '../public/views.json');
+      fs.writeFileSync(VIEWS_FILE, JSON.stringify({ count }));
+  } catch (e) { /* ignore write error on ephemeral fs */ }
+
+  res.json({ count });
 });
 
 // API: Trigger Scraper

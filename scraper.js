@@ -30,8 +30,12 @@
 
     // NOTE: Adjust indices [0], [1], etc based on the specific column order of the target website table
     // Assuming standard layout: Date | Ministry | Vendor | Amount | Method
-    // You may need to inspect the table headers to match these indices.
     
+    // Try to find a link to the contract
+    let contractUrl = null;
+    const link = row.querySelector('a');
+    if (link) contractUrl = link.href;
+
     const record = {
       id: index + 1,
       // Fallback logic tries to grab text safely
@@ -42,6 +46,7 @@
       method: cols[4]?.innerText?.trim() || "Open Tender", // Default if missing
       reason: null,
       sourceUrl: currentUrl,
+      contractUrl: contractUrl,
       crawledAt: now
     };
 

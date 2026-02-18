@@ -59,6 +59,9 @@ function AppContent() {
         const title = getVal(['Title', 'Tajuk', 'Description', 'Tajuk Projek', 'Project Title']) || "";
         const method = getVal(['Method', 'Kaedah', 'Procurement Method', 'Mode']) || "Open Tender";
         
+        // Specific Link Support
+        const contractUrl = getVal(['Link', 'Url', 'Permalink', 'Pautan', 'contractUrl']);
+
         // Amount Cleaning (Remove RM, commas, etc)
         let amount = 0;
         const rawAmount = getVal(['Price', 'Amount', 'Nilai', 'Harga', 'Contract Value', 'Cost']);
@@ -116,6 +119,7 @@ function AppContent() {
                 date: String(dateStr).trim(),
                 title: String(title).trim(),
                 sourceUrl: sourceName,
+                contractUrl: contractUrl ? String(contractUrl).trim() : undefined,
                 crawledAt: new Date().toISOString()
             });
         }

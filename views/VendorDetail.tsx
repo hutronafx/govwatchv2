@@ -116,12 +116,12 @@ export const VendorDetail: React.FC<VendorDetailProps> = ({ vendorName, records,
             <h3 className="text-xl font-bold text-white">{t.det_contract_history}</h3>
             {filteredRecords.map((r) => (
                 <div key={r.id} className="bg-gw-card border border-gw-border rounded-lg p-4 md:p-5 hover:border-gw-muted/50 transition-colors relative">
-                    {r.sourceUrl && (
+                    {(r.contractUrl || r.sourceUrl) && (
                         <a 
-                            href={r.sourceUrl} 
+                            href={r.contractUrl || r.sourceUrl} 
                             target="_blank" 
                             rel="noreferrer"
-                            title="Verify Source"
+                            title={r.contractUrl ? "View Contract Details" : "Verify Source"}
                             className="absolute top-4 right-4 text-gw-muted hover:text-gw-success transition-colors"
                         >
                             <LinkIcon className="w-4 h-4" />

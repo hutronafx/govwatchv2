@@ -11,7 +11,8 @@ export interface Record {
   address?: string; // Mapped from 'Address'
   reason?: string | null;
   // OpenTender-like Metadata
-  sourceUrl?: string; // Link to the original listing
+  sourceUrl?: string; // Link to the original listing (dataset source)
+  contractUrl?: string; // Specific permalink to the contract page
   crawledAt?: string; // ISO Date string of when we fetched this
 }
 

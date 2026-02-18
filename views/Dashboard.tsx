@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Record as ProcurementRecord } from '../types';
 import { StatCard } from '../components/StatCard';
 import { formatMoney, translateMinistry, downloadCSV, getMinistryLabel } from '../utils';
-import { ArrowUpRight, Search, FileText, Filter, ArrowUpDown, Download, Clock, Briefcase, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { ArrowUpRight, Search, FileText, Filter, ArrowUpDown, Download, Clock, Briefcase, ChevronLeft, ChevronRight, Info, ExternalLink } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import { useLanguage } from '../i18n';
 
@@ -396,13 +396,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, isLoading, onMini
                         </td>
                         <td className="px-4 md:px-6 py-4 text-right font-bold text-gw-text font-mono text-xs md:text-sm">{formatMoney(r.amount, language)}</td>
                         <td className="px-4 md:px-6 py-4 text-right whitespace-nowrap flex-col gap-1 items-end justify-center h-full hidden sm:flex">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
-                             (r.method || '').toLowerCase().includes('direct') || (r.method || '').toLowerCase().includes('rundingan')
-                             ? 'bg-gw-danger/10 text-gw-danger border-gw-danger/20'
-                             : 'bg-blue-400/10 text-blue-400 border-blue-400/20'
-                          }`}>
-                             {(r.method || '').toLowerCase().includes('direct') || (r.method || '').toLowerCase().includes('rundingan') ? t.val_direct_nego : t.val_open_tender}
-                          </span>
+                          <div className="flex items-center gap-2">
+                             {r.contractUrl && (
+                                <a 
+                                  href={r.contractUrl} 
+                                  target="_blank" 
+                                  rel="noreferrer" 
+                                  className="text-gw-muted hover:text-gw-success transition-colors"
+                                  title="View Contract Details"
+                                >
+                                   <ExternalLink className="w-3 h-3" />
+                                </a>
+                             )}
+                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                                (r.method || '').toLowerCase().includes('direct') || (r.method || '').toLowerCase().includes('rundingan')
+                                ? 'bg-gw-danger/10 text-gw-danger border-gw-danger/20'
+                                : 'bg-blue-400/10 text-blue-400 border-blue-400/20'
+                             }`}>
+                                {(r.method || '').toLowerCase().includes('direct') || (r.method || '').toLowerCase().includes('rundingan') ? t.val_direct_nego : t.val_open_tender}
+                             </span>
+                          </div>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] text-gw-muted border border-gw-border`}>
                             {r.category || 'General'}
                           </span>
