@@ -221,9 +221,21 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
 
                 if (mappedData.length === 0) throw new Error("No valid rows found");
 
-                await fetch('/api/update-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(mappedData) });
+                // Deduplicate mappedData
+                const uniqueData: Record[] = [];
+                const seen = new Set<string>();
+                
+                mappedData.forEach(r => {
+                    const sig = `${r.ministry}|${r.vendor}|${r.amount}|${r.date}|${r.title}`;
+                    if (!seen.has(sig)) {
+                        seen.add(sig);
+                        uniqueData.push(r);
+                    }
+                });
+
+                await fetch('/api/update-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(uniqueData) });
                 setStatus('success');
-                setTimeout(() => { onDataLoaded(mappedData); }, 1500);
+                setTimeout(() => { onDataLoaded(uniqueData); }, 1500);
 
             } catch (err) {
                 console.error(err);
@@ -238,9 +250,22 @@ export const Upload: React.FC<UploadProps> = ({ onDataLoaded }) => {
             try {
                 const rawData = JSON.parse(e.target?.result as string);
                 if (!Array.isArray(rawData)) throw new Error("Not an array");
-                await fetch('/api/update-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(rawData) });
+                
+                // Deduplicate
+                const uniqueData: any[] = [];
+                const seen = new Set<string>();
+                
+                rawData.forEach((r: any) => {
+                     const sig = `${r.ministry}|${r.vendor}|${r.amount}|${r.date}|${r.title}`;
+                     if (!seen.has(sig)) {
+                         seen.add(sig);
+                         uniqueData.push(r);
+                     }
+                });
+
+                await fetch('/api/update-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(uniqueData) });
                 setStatus('success');
-                setTimeout(() => { onDataLoaded(rawData); }, 1500);
+                setTimeout(() => { onDataLoaded(uniqueData); }, 1500);
             } catch (err) { setStatus('error'); }
         };
         reader.readAsText(file);

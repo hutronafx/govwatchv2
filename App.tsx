@@ -36,6 +36,8 @@ function AppContent() {
     if (!Array.isArray(jsonData)) throw new Error("Data is not an array");
     
     const cleanData: Record[] = [];
+    const seenSignatures = new Set<string>();
+
     jsonData.forEach((row: any, index: number) => {
         // Flexible Column Mapping for CSV headers
         // Try exact matches, then case-insensitive, then fallback mappings
@@ -109,19 +111,32 @@ function AppContent() {
 
         // Only add if it looks like real data (has money or valid vendor/ministry)
         if (amount > 0 || (ministry !== "Unknown Ministry" && vendor !== "Unknown Vendor")) {
-            cleanData.push({
-                id: row.id || index + 1,
-                ministry: String(ministry).trim(),
-                vendor: String(vendor).trim(),
-                amount: amount || 0,
-                method: String(method).trim(),
-                category: String(category).trim(),
-                date: String(dateStr).trim(),
-                title: String(title).trim(),
-                sourceUrl: sourceName,
-                contractUrl: contractUrl ? String(contractUrl).trim() : undefined,
-                crawledAt: new Date().toISOString()
-            });
+            const finalMinistry = String(ministry).trim();
+            const finalVendor = String(vendor).trim();
+            const finalDate = String(dateStr).trim();
+            const finalTitle = String(title).trim();
+            const finalAmount = amount || 0;
+
+            // Create signature for deduplication
+            const signature = `${finalMinistry}|${finalVendor}|${finalAmount}|${finalDate}|${finalTitle}`;
+
+            if (!seenSignatures.has(signature)) {
+                seenSignatures.add(signature);
+
+                cleanData.push({
+                    id: row.id || index + 1,
+                    ministry: finalMinistry,
+                    vendor: finalVendor,
+                    amount: finalAmount,
+                    method: String(method).trim(),
+                    category: String(category).trim(),
+                    date: finalDate,
+                    title: finalTitle,
+                    sourceUrl: sourceName,
+                    contractUrl: contractUrl ? String(contractUrl).trim() : undefined,
+                    crawledAt: new Date().toISOString()
+                });
+            }
         }
     });
     return cleanData;
@@ -225,10 +240,31 @@ function AppContent() {
   // Handler for manual data upload from Admin view
   const handleDataUpdate = (newData: Record[]) => {
       // Normalize imported data just in case
-      const normalized = newData.map(r => ({
-          ...r,
-          ministry: cleanMinistryName(r.ministry)
-      }));
+      const normalized: Record[] = [];
+      const seenSignatures = new Set<string>();
+
+      newData.forEach(r => {
+          const cleanMinistry = cleanMinistryName(r.ministry);
+          const cleanVendor = String(r.vendor).trim();
+          const cleanDate = String(r.date).trim();
+          const cleanTitle = String(r.title).trim();
+          const amount = r.amount || 0;
+
+          const signature = `${cleanMinistry}|${cleanVendor}|${amount}|${cleanDate}|${cleanTitle}`;
+          
+          if (!seenSignatures.has(signature)) {
+              seenSignatures.add(signature);
+              normalized.push({
+                  ...r,
+                  ministry: cleanMinistry,
+                  vendor: cleanVendor,
+                  date: cleanDate,
+                  title: cleanTitle,
+                  amount: amount
+              });
+          }
+      });
+
       setRecords(normalized);
       setViewConfig({ view: 'dashboard' });
   };

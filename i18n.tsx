@@ -112,7 +112,7 @@ const defaultTranslations = {
     admin_enter_pin: "Enter Admin PIN",
     admin_unlock: "Unlock",
     admin_update_db: "Update Database",
-    admin_mode_active: "ADMIN MODE ACTIVE",
+    admin_mode_active: "MOD ADMIN AKTIF",
     admin_server_scraper: "Server Scraper",
     admin_server_desc: "Attempts to scrape from the server. May fail if IP is blocked.",
     admin_start_scrape: "Start Auto-Scrape",
@@ -157,7 +157,8 @@ const defaultTranslations = {
     // Footer Credits
     ftr_developer: "Lead Developer & Founder",
     ftr_role: "Student & Founder of",
-    ftr_built: "Built as an independent initiative to modernise Malaysian civic data."
+    ftr_built: "Built as an independent initiative to modernise Malaysian civic data.",
+    ftr_views: "Views"
   },
   ms: {
     nav_dashboard: "Papan Pemuka",
@@ -313,7 +314,8 @@ const defaultTranslations = {
     // Footer Credits
     ftr_developer: "Pembangun Utama & Pengasas",
     ftr_role: "Pelajar & Pengasas",
-    ftr_built: "Dibina sebagai inisiatif bebas untuk memodenkan data sivik Malaysia."
+    ftr_built: "Dibina sebagai inisiatif bebas untuk memodenkan data sivik Malaysia.",
+    ftr_views: "Paparan"
   }
 };
 

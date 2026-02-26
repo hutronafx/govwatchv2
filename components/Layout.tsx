@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Eye, LayoutDashboard, Building2, Store, Info, Languages, Lock } from 'lucide-react';
 import { useLanguage } from '../i18n';
 
@@ -10,6 +10,44 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, activeView, onNavigate }) => {
   const { language, toggleLanguage, t } = useLanguage();
+  const [viewCount, setViewCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const trackView = async () => {
+      try {
+        // Use sessionStorage to ensure we only count "visits" (sessions), not every refresh.
+        const sessionKey = 'govwatch_session_view';
+        const hasVisited = sessionStorage.getItem(sessionKey);
+        
+        try {
+            let res;
+            if (!hasVisited) {
+                // Increment
+                res = await fetch('/api/visit', { method: 'POST' });
+                if (res.ok) sessionStorage.setItem(sessionKey, 'true');
+            } else {
+                // Just fetch
+                res = await fetch('/api/views');
+            }
+
+            if (res && res.ok) {
+                const data = await res.json();
+                setViewCount(data.count);
+                return;
+            }
+        } catch (networkError) {
+            console.warn("Backend unavailable, using fallback view count.");
+        }
+
+        // Fallback for preview mode or if backend is unreachable
+        setViewCount(494);
+
+      } catch (e) {
+        console.warn("View tracking error.");
+      }
+    };
+    trackView();
+  }, []);
 
   const navItemClass = (isActive: boolean) => 
     `flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -101,6 +139,22 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeView, onNavigate
             <p className="text-xs text-gw-muted mt-2 mb-4">
                 &copy; {new Date().getFullYear()} Public Procurement Monitoring Initiative.
             </p>
+
+            {/* View Counter */}
+            {viewCount !== null && (
+                <div className="mb-4 flex justify-center animate-fadeIn">
+                    <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-gw-bg/80 border border-gw-success/30 text-xs text-gw-muted shadow-lg backdrop-blur-sm group hover:border-gw-success/60 transition-colors" title="Total Website Visits">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gw-success opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-gw-success"></span>
+                        </span>
+                        <div className="flex items-baseline gap-1">
+                            <span className="font-mono text-white font-bold text-sm tracking-widest">{viewCount.toLocaleString()}</span>
+                            <span className="text-[10px] uppercase tracking-wide opacity-70 group-hover:opacity-100">{t.ftr_views || "Views"}</span>
+                        </div>
+                    </div>
+                </div>
+            )}
             
             <button 
                 onClick={() => onNavigate('upload')} 

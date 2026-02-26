@@ -8,6 +8,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// BASELINE: Set to 494 as requested
+const BASELINE_VIEWS = 494; 
+
 app.use(express.json({ limit: '50mb' }));
 
 // Static
@@ -29,6 +32,46 @@ app.post('/api/update-data', (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Failed to write to disk' });
   }
+});
+
+// API: View Tracker
+app.get('/api/views', (req, res) => {
+  const VIEWS_FILE = path.join(__dirname, '../public/views.json');
+  let count = BASELINE_VIEWS;
+
+  try {
+    if (fs.existsSync(VIEWS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(VIEWS_FILE, 'utf-8'));
+      // Only use local count if it's higher than baseline
+      if (data.count > count) count = data.count;
+    }
+  } catch (e) {
+    console.error('Error reading views file:', e);
+  }
+  
+  res.json({ count });
+});
+
+app.post('/api/visit', (req, res) => {
+  const VIEWS_FILE = path.join(__dirname, '../public/views.json');
+  let count = BASELINE_VIEWS;
+
+  try {
+    if (fs.existsSync(VIEWS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(VIEWS_FILE, 'utf-8'));
+      if (data.count >= count) count = data.count;
+    }
+  } catch (e) { /* ignore */ }
+  
+  count++;
+
+  try {
+      fs.writeFileSync(VIEWS_FILE, JSON.stringify({ count }));
+  } catch (e) { 
+    console.error('Error writing views file:', e);
+  }
+
+  res.json({ count });
 });
 
 // API: Trigger Scraper
